@@ -37,7 +37,7 @@ sealed class MainWindow : Form
 
     // Dark title bar (Windows 10 1809+) and, on Windows 11, a caption painted in the night colour.
     // Older systems ignore the attributes and keep the default caption.
-    static void DarkTitleBar(IntPtr handle, Color caption)
+    internal static void DarkTitleBar(IntPtr handle, Color caption)
     {
         int dark = 1;
         _ = DwmSetWindowAttribute(handle, ImmersiveDarkMode, ref dark, sizeof(int));

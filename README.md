@@ -2,7 +2,7 @@
 
 Jogo de terror e programação para Windows. Você volta ao casarão da infância, no Recife, e sobrevive às noites escrevendo C# que compila e roda de verdade, enquanto o Papa-Figo se aproxima. Arte vetorial desenhada pelo próprio jogo e sons sintetizados em código, sem assets externos.
 
-**Estado:** entrega 4 de 11. O jogo verifica, compila e executa C# de verdade, num processo isolado; tem as noites 1 e 2 do Ato 1; e já tem as regras da noite (relógio elástico, penalidades, velas, marcas e o trajeto do Papa-Figo), conferidas em noites simuladas. Ainda não há tela de jogo.
+**Estado:** entrega 5 de 11. O jogo verifica, compila e executa C# de verdade, num processo isolado; tem as noites 1 e 2 do Ato 1; tem as regras da noite (relógio elástico, penalidades, velas, marcas e o trajeto do Papa-Figo), conferidas em noites simuladas; e tem o protótipo de desenho do quarto à luz de vela, com o Papa-Figo em cada parada e as medições de desempenho. Ainda não há uma noite jogável.
 
 ## Requisitos
 
@@ -20,6 +20,8 @@ Jogo de terror e programação para Windows. Você volta ao casarão da infânci
 ./scripts/security-test.ps1                       # ataca o executor isolado e mostra o que cada camada bloqueou
 ./scripts/content-test.ps1                        # confere cada noite com o código inicial e a solução de referência
 ./scripts/simulate.ps1                            # joga noites roteirizadas pelas regras e mostra a linha do tempo
+./scripts/scene.ps1                               # abre o protótipo de desenho (F2 troca a parada, F3 mostra as medições)
+./scripts/scene-bench.ps1                         # mede o desenho em 1920x1080 por uns 2 minutos e salva o relatório
 ```
 
 Para medir os tempos de compilação (a primeira compilação e a média das seguintes):
@@ -69,6 +71,24 @@ Os valores ficam em `content/rules.json`: tempo por ato, parte do tempo devolvid
 - `CreatureDirector` decide em que parada ele está, se pode ser visto naquele ato, avisa com um som antes de cada chegada e dispara os sustos roteirizados das noites.
 
 A solução de referência de cada noite fica em `tests/Candeia.Tests/Solutions/<id>.cs` e não vai no jogo. Os conceitos exigidos podem ser uma construção que precisa rodar (`if`, `for`, `foreach`, `while`, `do`, `switch`, `conditional`), uma variável de um tipo (`declare:double`) ou um operador (`operator:%`).
+
+## Desenho
+
+A cena é desenhada pelo próprio jogo, com GDI+, sem imagens. A cada quadro:
+
+1. o quarto (paredes, janela, porta, mesa, monitor, teclado, caderno e velas), desenhado uma vez por tamanho de janela e guardado;
+2. o que se move: a chuva no vidro e o Papa-Figo na parada em que está;
+3. um mapa de luz pequeno, uma célula para cada 8×8 pixels, com as três velas tremendo, o monitor, a noite lá fora pela janela e o luar do corredor pela porta;
+4. uma única passagem que escurece cada pixel pelo mapa, com vinheta e granulação, sem tocar no editor;
+5. o que emite luz: as chamas, os halos, a luz do monitor e os olhos vermelhos dele.
+
+O editor é um controle de texto por cima do monitor. A cena nunca desenha sobre o código.
+
+`./scripts/scene-bench.ps1` mede cada parada a 60 e a 30 quadros por segundo e confere os três critérios do plano técnico: pelo menos 30 quadros por segundo, no máximo 35% de um núcleo do processador e digitação que aparece em menos de 16 ms. O relatório e uma imagem por parada ficam em `test-artifacts/desenho/`. Para ver quanto custa cada camada em cada parada, sem janela:
+
+```powershell
+./scripts/dotnet.ps1 run --project src/Candeia.Windows -c Release -- --scene-profile test-artifacts/perfil.md
+```
 
 ## Estrutura
 
