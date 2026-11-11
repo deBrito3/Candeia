@@ -1,0 +1,25 @@
+{
+  "id": "act1-01-room-light",
+  "act": 1,
+  "order": 1,
+  "type": "repair",
+  "intro": true,
+  "title": { "pt": "A luz do quarto", "en": "The bedroom light" },
+  "class": "RoomLight",
+  "methods": [
+    { "name": "Watts", "returns": "int", "params": [] },
+    { "name": "Voltage", "returns": "double", "params": [] },
+    { "name": "StartsOn", "returns": "bool", "params": [] },
+    { "name": "Model", "returns": "string", "params": [] }
+  ],
+  "concepts": ["declare:double", "declare:bool", "declare:string"],
+  "tests": [
+    { "method": "Watts", "args": [], "expected": 60 },
+    { "method": "Voltage", "args": [], "expected": 220.0 },
+    { "method": "StartsOn", "args": [], "expected": true },
+    { "method": "Model", "args": [], "expected": "CND-60" }
+  ],
+  "events": [
+    { "on": "first-new-lamp", "effect": "silhouette", "where": "yard", "seconds": 0.6 }
+  ]
+}

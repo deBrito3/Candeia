@@ -62,6 +62,11 @@ public sealed class CSharpRuntime : ILanguageRuntime
         return EmitInstrumented(tree, options, watch);
     }
 
+    // The night's required concepts that this code does not use; marks come from the run's result.
+    public IReadOnlyList<string> MissingConcepts(string source, IEnumerable<string> concepts, IReadOnlyDictionary<string, long> marks, CheckOptions options) =>
+        ConceptCheck.Missing(source, concepts, marks, ParseOptions,
+            tree => CSharpCompilation.Create("PlayerCode", [Usings(options), tree], References, CompilationOptions(options)));
+
     // Compiles a tiny program once, during the night's introduction, so the player's first check does not
     // pay the compiler's start-up cost.
     public void Warm() => CompileForRun("public static class Warm { public static int Two(int x) { if (x > 0) return x + 1; return 2; } }", new());

@@ -39,6 +39,7 @@ sealed class RunRequestMessage
 
 sealed class TestCaseMessage
 {
+    public string? Method { get; set; }
     public JsonElement[] Args { get; set; } = [];
     public JsonElement Expected { get; set; }
 }

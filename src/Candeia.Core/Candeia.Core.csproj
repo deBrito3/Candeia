@@ -11,6 +11,11 @@
     <InternalsVisibleTo Include="Candeia.Tests" />
   </ItemGroup>
   <ItemGroup>
+    <!-- The nights and other content are data files beside the game, copied to every executable that
+         uses the core (the game and the test runner), so they can change without touching code. -->
+    <Content Include="../../content/**" LinkBase="content" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
+  </ItemGroup>
+  <ItemGroup>
     <!-- Roslyn compiles and analyses the player's C#. Pinned to an exact version. -->
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" />
   </ItemGroup>

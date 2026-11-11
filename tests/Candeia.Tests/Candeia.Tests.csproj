@@ -9,4 +9,9 @@
   <ItemGroup>
     <ProjectReference Include="../../src/Candeia.Core/Candeia.Core.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- Reference solutions of the nights: player code, compiled by the game at test time, never part of this project. -->
+    <Compile Remove="Solutions/**" />
+    <None Include="Solutions/**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

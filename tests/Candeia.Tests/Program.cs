@@ -3,6 +3,7 @@ using Candeia.Tests;
 
 // Command-line test suites and developer tools, as in Projeto Aurora:
 //   --self-test           every quick suite, including real runs in the isolated runner
+//   --content-test        every night of content/, with its starter and reference solution run for real
 //   --security-test       attacks on the isolated runner with code the checker would refuse
 //   --check <file.cs>     checks a C# file as a night would; add --en for English, --linq to allow LINQ
 //   --bench               compile and run times
@@ -18,8 +19,15 @@ if (args.Length == 0 || args.Contains("--self-test"))
     runner.Suite("C# checker: explained errors", CSharpCheckerTests.Explained);
     runner.Suite("C# checker: compilation", CSharpCheckerTests.Compilation);
     runner.Suite("Instrumentation", InstrumentationTests.Run);
+    runner.Suite("Night format", NightLoaderTests.Run);
     if (OperatingSystem.IsWindows()) runner.Suite("Isolated runner", RunnerTests.Run);
     return runner.Report(Console.Out);
+}
+
+if (args.Contains("--content-test"))
+{
+    if (!OperatingSystem.IsWindows()) { Console.Error.WriteLine("The isolated runner needs Windows."); return 2; }
+    return ContentTests.Run(Console.Out);
 }
 
 if (args.Contains("--security-test"))

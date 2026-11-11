@@ -4,7 +4,8 @@ namespace Candeia.Execution;
 
 // One lamp of a night: the arguments the house system passes to the player's method and the answer it
 // expects, as neutral JSON values (numbers, booleans, text, lists, records), so any language can use it.
-public sealed record TestCase(JsonElement[] Args, JsonElement Expected, bool Hidden = false);
+// Method names the method this test calls; without it, the request's entry method.
+public sealed record TestCase(JsonElement[] Args, JsonElement Expected, bool Hidden = false, string? Method = null);
 
 // Limits of one run. Defaults are the Act 1 values of the technical plan.
 public sealed record RunLimits(

@@ -121,7 +121,7 @@ public sealed class RunnerHost : IDisposable
                     Assembly = Convert.ToBase64String(request.Assembly),
                     Pdb = request.Pdb is null ? null : Convert.ToBase64String(request.Pdb),
                     EntryType = request.EntryType, EntryMethod = request.EntryMethod,
-                    Tests = request.Tests.Select(t => new TestCaseMessage { Args = t.Args, Expected = t.Expected }).ToList(),
+                    Tests = request.Tests.Select(t => new TestCaseMessage { Method = t.Method, Args = t.Args, Expected = t.Expected }).ToList(),
                     StepsPerTest = request.Limits.StepsPerTest, OutputChars = request.Limits.OutputChars, Tolerance = request.Tolerance,
                 };
                 var bytes = new UTF8Encoding(false).GetBytes(Protocol.Serialize(message) + "\n");

@@ -70,17 +70,25 @@ public static class Runner
             probe.GetField("Exceeded")!.SetValue(null, (Action)StepLimitReached);
             probe.GetField("StackExhausted")!.SetValue(null, (Action)StackExhausted);
 
-            var method = assembly.GetType(request.EntryType)?.GetMethods(BindingFlags.Public | BindingFlags.Static)
-                .FirstOrDefault(m => m.Name == request.EntryMethod && m.GetParameters().Length == request.Tests.FirstOrDefault()?.Args.Length);
-            if (method is null)
+            // Every test's method must exist before any test runs: a missing one is the night's first message.
+            var publicMethods = assembly.GetType(request.EntryType)?.GetMethods(BindingFlags.Public | BindingFlags.Static) ?? [];
+            var methods = new MethodInfo[request.Tests.Count];
+            for (int i = 0; i < request.Tests.Count; i++)
             {
-                Send(protocol, new RunnerMessage { Kind = "done", Stop = nameof(RunStop.EntryNotFound), Detail = $"{request.EntryType}.{request.EntryMethod}" });
-                return 0;
+                string name = request.Tests[i].Method ?? request.EntryMethod;
+                var found = publicMethods.FirstOrDefault(m => m.Name == name && m.GetParameters().Length == request.Tests[i].Args.Length);
+                if (found is null)
+                {
+                    Send(protocol, new RunnerMessage { Kind = "done", Stop = nameof(RunStop.EntryNotFound), Detail = $"{request.EntryType}.{name}" });
+                    return 0;
+                }
+                methods[i] = found;
             }
-            var parameters = method.GetParameters();
             for (int i = 0; i < request.Tests.Count; i++)
             {
                 var test = request.Tests[i];
+                var method = methods[i];
+                var parameters = method.GetParameters();
                 current = i;
                 object?[] args = parameters.Select((p, index) => TestValues.Convert(test.Args[index], p.ParameterType)).ToArray();
                 object? expected = method.ReturnType == typeof(void) ? null : TestValues.Convert(test.Expected, method.ReturnType);

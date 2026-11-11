@@ -2,7 +2,7 @@
 
 Jogo de terror e programação para Windows. Você volta ao casarão da infância, no Recife, e sobrevive às noites escrevendo C# que compila e roda de verdade, enquanto o Papa-Figo se aproxima. Arte vetorial desenhada pelo próprio jogo e sons sintetizados em código, sem assets externos.
 
-**Estado:** entrega 2 de 11. O jogo verifica, compila e executa C# de verdade: o código do jogador roda num processo isolado, com limites de passos, tempo, memória e permissões, e cada teste volta com o resultado. Ainda não há noites jogáveis.
+**Estado:** entrega 3 de 11. O jogo verifica, compila e executa C# de verdade, num processo isolado, e já tem as noites 1 e 2 do Ato 1 em arquivos de dados, testadas com as soluções de referência. Ainda não há tela de jogo.
 
 ## Requisitos
 
@@ -18,6 +18,7 @@ Jogo de terror e programação para Windows. Você volta ao casarão da infânci
 ./scripts/check.ps1                               # verifica as amostras de samples/csharp como uma noite faria
 ./scripts/check.ps1 meu-arquivo.cs --en           # verifica um arquivo, com as mensagens em inglês
 ./scripts/security-test.ps1                       # ataca o executor isolado e mostra o que cada camada bloqueou
+./scripts/content-test.ps1                        # confere cada noite com o código inicial e a solução de referência
 ```
 
 Para medir os tempos de compilação (a primeira compilação e a média das seguintes):
@@ -47,6 +48,19 @@ O código aprovado é compilado com contadores de passos e marcadores, e roda no
 
 A baixa integridade não impede ler arquivos, acessar a rede nem encerrar outros programas do usuário. Contra isso, a barreira é a lista de APIs permitidas. A suíte de ataques mostra cada caso.
 
+## Noites
+
+Cada noite é uma pasta em `content/nights/<ato>/<noite>/`:
+
+| Arquivo | Conteúdo |
+| --- | --- |
+| `night.json` | A classe e os métodos que o sistema da casa chama, os testes (cada um uma lâmpada, visível ou oculto), os conceitos exigidos e os sustos roteirizados |
+| `starter.cs` | O código que o jogador encontra no computador antigo |
+| `readme.pt.md`, `readme.en.md` | O LEIA-ME deixado por quem escreveu o sistema |
+| `hints.pt.md`, `hints.en.md` | As três camadas de dica (`## 1` a ideia, `## 2` os comandos, `## 3` um esqueleto com lacunas) |
+
+A solução de referência de cada noite fica em `tests/Candeia.Tests/Solutions/<id>.cs` e não vai no jogo. Os conceitos exigidos podem ser uma construção que precisa rodar (`if`, `for`, `foreach`, `while`, `do`, `switch`, `conditional`), uma variável de um tipo (`declare:double`) ou um operador (`operator:%`).
+
 ## Estrutura
 
 | Pasta | Conteúdo |
@@ -54,6 +68,7 @@ A baixa integridade não impede ler arquivos, acessar a rede nem encerrar outros
 | `src/Candeia.Core/` | Regras, desafios e execução do código do jogador. Não depende do Windows |
 | `src/Candeia.Windows/` | O executável do jogo (Windows Forms) |
 | `tests/Candeia.Tests/` | Suítes de teste por linha de comando, sem framework de testes |
+| `content/` | As noites e o restante do conteúdo do jogo, em arquivos de dados |
 | `samples/csharp/` | Programas de exemplo, certos e errados, para conferir o verificador de C# |
 | `scripts/` | SDK isolado, testes, verificação de C# e execução |
 | `licenses/` | Licenças de componentes de terceiros distribuídos com o jogo |

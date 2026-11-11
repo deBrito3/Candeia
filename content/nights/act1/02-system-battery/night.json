@@ -1,0 +1,30 @@
+{
+  "id": "act1-02-system-battery",
+  "act": 1,
+  "order": 2,
+  "type": "repair",
+  "title": { "pt": "A bateria do sistema", "en": "The system battery" },
+  "class": "Battery",
+  "methods": [
+    { "name": "Percent", "returns": "int", "params": [ { "name": "charge", "type": "int" }, { "name": "capacity", "type": "int" } ] },
+    { "name": "Hours", "returns": "double", "params": [ { "name": "charge", "type": "int" }, { "name": "load", "type": "int" } ] },
+    { "name": "Minutes", "returns": "int", "params": [ { "name": "hours", "type": "double" } ] },
+    { "name": "LeftoverMinutes", "returns": "int", "params": [ { "name": "minutes", "type": "int" } ] }
+  ],
+  "concepts": ["operator:/", "operator:%"],
+  "tests": [
+    { "method": "Percent", "args": [50, 100], "expected": 50 },
+    { "method": "Percent", "args": [30, 120], "expected": 25 },
+    { "method": "Percent", "args": [1, 3], "expected": 33 },
+    { "method": "Percent", "args": [7, 8], "expected": 87, "hidden": true },
+    { "method": "Hours", "args": [100, 40], "expected": 2.5 },
+    { "method": "Hours", "args": [90, 60], "expected": 1.5 },
+    { "method": "Hours", "args": [7, 2], "expected": 3.5, "hidden": true },
+    { "method": "Minutes", "args": [1.5], "expected": 90 },
+    { "method": "Minutes", "args": [0.25], "expected": 15 },
+    { "method": "Minutes", "args": [1.999], "expected": 120, "hidden": true },
+    { "method": "LeftoverMinutes", "args": [90], "expected": 30 },
+    { "method": "LeftoverMinutes", "args": [125], "expected": 5 },
+    { "method": "LeftoverMinutes", "args": [601], "expected": 1, "hidden": true }
+  ]
+}
