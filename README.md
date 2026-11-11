@@ -2,7 +2,7 @@
 
 Jogo de terror e programação para Windows. Você volta ao casarão da infância, no Recife, e sobrevive às noites escrevendo C# que compila e roda de verdade, enquanto o Papa-Figo se aproxima. Arte vetorial desenhada pelo próprio jogo e sons sintetizados em código, sem assets externos.
 
-**Estado:** entrega 3 de 11. O jogo verifica, compila e executa C# de verdade, num processo isolado, e já tem as noites 1 e 2 do Ato 1 em arquivos de dados, testadas com as soluções de referência. Ainda não há tela de jogo.
+**Estado:** entrega 4 de 11. O jogo verifica, compila e executa C# de verdade, num processo isolado; tem as noites 1 e 2 do Ato 1; e já tem as regras da noite (relógio elástico, penalidades, velas, marcas e o trajeto do Papa-Figo), conferidas em noites simuladas. Ainda não há tela de jogo.
 
 ## Requisitos
 
@@ -19,6 +19,7 @@ Jogo de terror e programação para Windows. Você volta ao casarão da infânci
 ./scripts/check.ps1 meu-arquivo.cs --en           # verifica um arquivo, com as mensagens em inglês
 ./scripts/security-test.ps1                       # ataca o executor isolado e mostra o que cada camada bloqueou
 ./scripts/content-test.ps1                        # confere cada noite com o código inicial e a solução de referência
+./scripts/simulate.ps1                            # joga noites roteirizadas pelas regras e mostra a linha do tempo
 ```
 
 Para medir os tempos de compilação (a primeira compilação e a média das seguintes):
@@ -58,6 +59,14 @@ Cada noite é uma pasta em `content/nights/<ato>/<noite>/`:
 | `starter.cs` | O código que o jogador encontra no computador antigo |
 | `readme.pt.md`, `readme.en.md` | O LEIA-ME deixado por quem escreveu o sistema |
 | `hints.pt.md`, `hints.en.md` | As três camadas de dica (`## 1` a ideia, `## 2` os comandos, `## 3` um esqueleto com lacunas) |
+
+## Regras da noite
+
+Os valores ficam em `content/rules.json`: tempo por ato, parte do tempo devolvida pelas lâmpadas, custos da regra "a casa faz barulho", velas, respiro, dificuldades e as faixas das paradas (rua, portão, quintal, janela, porta, ao seu lado). Ajustar o equilíbrio do jogo é mudar esse arquivo.
+
+- `NightClock` é o tempo elástico: corre só enquanto o jogador programa, para enquanto as lâmpadas acendem e no respiro, perde uma vela a cada vez que zera e termina em vitória ou captura, com as marcas Ileso, Sem doce e Distância.
+- `PenaltyRules` calcula o que cada execução devolve ou custa.
+- `CreatureDirector` decide em que parada ele está, se pode ser visto naquele ato, avisa com um som antes de cada chegada e dispara os sustos roteirizados das noites.
 
 A solução de referência de cada noite fica em `tests/Candeia.Tests/Solutions/<id>.cs` e não vai no jogo. Os conceitos exigidos podem ser uma construção que precisa rodar (`if`, `for`, `foreach`, `while`, `do`, `switch`, `conditional`), uma variável de um tipo (`declare:double`) ou um operador (`operator:%`).
 

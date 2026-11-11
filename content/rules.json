@@ -1,0 +1,33 @@
+{
+  // The night's balance, from the approved game design document. Percentages are fractions of the
+  // night's starting time. Tune here, not in code.
+  "acts": {
+    "1": { "nightSeconds": 360, "siegeSeconds": 540, "lampPool": 0.60, "costMultiplier": 1.00, "visibleUntil": "yard" },
+    "2": { "nightSeconds": 420, "siegeSeconds": 600, "lampPool": 0.50, "costMultiplier": 1.25, "visibleUntil": "door", "streakAdvance": { "after": 3, "cost": 0.05 } },
+    "3": { "nightSeconds": 480, "siegeSeconds": 720, "lampPool": 0.45, "costMultiplier": 1.50, "visibleUntil": "door", "streakAdvance": { "after": 3, "cost": 0.05 } },
+    "4": { "nightSeconds": 480, "siegeSeconds": 840, "lampPool": 0.40, "costMultiplier": 2.00, "visibleUntil": "beside", "streakAdvance": { "after": 3, "cost": 0.05 } }
+  },
+  "noProgressCosts": [0.02, 0.04, 0.06],
+  "crashCost": 0.05,
+  "sweetCost": 0.05,
+  "nearCaptureReturn": 0.30,
+  "respiteSeconds": 5,
+  "distanceMark": 0.60,
+  "sweetAfterNoProgressRuns": 2,
+  "sweetAfterFractionWithoutLamp": 0.3333,
+  "telegraphSeconds": 2,
+  "difficulties": {
+    "vigil": { "time": 1.50, "costs": 0.50, "candles": 4, "sweet": "free" },
+    "night": { "time": 1.00, "costs": 1.00, "candles": 3, "sweet": "paid" },
+    "nightmare": { "time": 0.75, "costs": 1.50, "candles": 1, "sweet": "none" }
+  },
+  // Where he is, by the fraction of time left: from the street (all the time) to beside you (none).
+  "stations": [
+    { "id": "street", "from": 1.00 },
+    { "id": "gate", "from": 0.80 },
+    { "id": "yard", "from": 0.60 },
+    { "id": "window", "from": 0.40 },
+    { "id": "door", "from": 0.20 },
+    { "id": "beside", "from": 0.08 }
+  ]
+}

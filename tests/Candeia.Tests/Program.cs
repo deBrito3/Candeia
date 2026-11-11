@@ -7,6 +7,7 @@ using Candeia.Tests;
 //   --security-test       attacks on the isolated runner with code the checker would refuse
 //   --check <file.cs>     checks a C# file as a night would; add --en for English, --linq to allow LINQ
 //   --bench               compile and run times
+//   --simulate            scripted nights through the real clock and creature, as a timeline
 //   --runner              the isolated runner itself, started by the suites (never by hand)
 if (args is [Runner.Argument]) return Runner.Main(Console.OpenStandardInput(), Console.OpenStandardOutput());
 
@@ -20,6 +21,7 @@ if (args.Length == 0 || args.Contains("--self-test"))
     runner.Suite("C# checker: compilation", CSharpCheckerTests.Compilation);
     runner.Suite("Instrumentation", InstrumentationTests.Run);
     runner.Suite("Night format", NightLoaderTests.Run);
+    runner.Suite("Night rules", NightRulesTests.Run);
     if (OperatingSystem.IsWindows()) runner.Suite("Isolated runner", RunnerTests.Run);
     return runner.Report(Console.Out);
 }
@@ -44,6 +46,8 @@ if (check >= 0)
 }
 
 if (args.Contains("--bench")) return Tools.Bench(Console.Out);
+
+if (args.Contains("--simulate")) return NightSimulation.Run(Console.Out);
 
 if (args.Contains("--isolation-probe") && OperatingSystem.IsWindows()) return IsolationProbe.Run(Console.Out);
 
