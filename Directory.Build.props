@@ -7,6 +7,8 @@
     <LangVersion>latest</LangVersion>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <Deterministic>true</Deterministic>
-    <SatelliteResourceLanguages>pt;en</SatelliteResourceLanguages>
+    <!-- English is the neutral language; pt-BR keeps Roslyn's Portuguese compiler messages, used
+         when an error has no explanation of its own. -->
+    <SatelliteResourceLanguages>pt-BR</SatelliteResourceLanguages>
   </PropertyGroup>
 </Project>

@@ -10,4 +10,24 @@
     <InternalsVisibleTo Include="Candeia" />
     <InternalsVisibleTo Include="Candeia.Tests" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- Roslyn compiles and analyses the player's C#. Pinned to an exact version. -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" />
+  </ItemGroup>
+
+  <!-- The player's code is compiled against a few reference assemblies of the .NET targeting pack,
+       embedded here because a single-file game has no reference assemblies on disk. The API allow-list
+       decides what inside them the player may use. -->
+  <PropertyGroup>
+    <PlayerReferenceNames>System.Runtime;System.Collections;System.Console;System.Linq</PlayerReferenceNames>
+  </PropertyGroup>
+  <!-- Runs before AssignTargetPaths, the first step that processes resources: hooking PrepareResources
+       would run after its dependencies and the items would be ignored. -->
+  <Target Name="EmbedPlayerReferences" BeforeTargets="AssignTargetPaths" DependsOnTargets="ResolveTargetingPackAssets">
+    <ItemGroup>
+      <_PlayerReferenceMatch Include="@(Reference)" Condition="'%(Reference.FrameworkReferenceName)' == 'Microsoft.NETCore.App' and $([System.String]::Copy(';$(PlayerReferenceNames);').Contains(';%(Reference.Filename);'))" />
+      <EmbeddedResource Include="@(_PlayerReferenceMatch)" LogicalName="Candeia.PlayerReference.%(Filename)%(Extension)" WithCulture="false" />
+    </ItemGroup>
+    <Error Condition="'@(_PlayerReferenceMatch->Count())' != '4'" Text="Expected 4 player reference assemblies in the targeting pack, found @(_PlayerReferenceMatch->Count()): @(_PlayerReferenceMatch->'%(Filename)')." />
+  </Target>
 </Project>
