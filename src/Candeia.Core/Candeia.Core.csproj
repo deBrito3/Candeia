@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Game rules, challenges and code execution. Must not depend on Windows, so it can be tested
+       anywhere and a macOS front end stays possible later. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>Candeia.Core</AssemblyName>
+    <RootNamespace>Candeia</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Candeia" />
+    <InternalsVisibleTo Include="Candeia.Tests" />
+  </ItemGroup>
+</Project>

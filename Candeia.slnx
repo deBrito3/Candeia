@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Candeia.Core/Candeia.Core.csproj" />
+    <Project Path="src/Candeia.Windows/Candeia.Windows.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Candeia.Tests/Candeia.Tests.csproj" />
+  </Folder>
+</Solution>
