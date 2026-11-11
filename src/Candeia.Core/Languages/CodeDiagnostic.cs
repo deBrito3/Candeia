@@ -18,8 +18,9 @@ public sealed record CheckResult(IReadOnlyList<CodeDiagnostic> Errors, TimeSpan 
     public bool Success => Errors.Count == 0;
 }
 
-// The compiled player code and its line information, ready to be sent to the isolated runner.
-public sealed record CompileResult(IReadOnlyList<CodeDiagnostic> Errors, byte[]? Assembly, byte[]? Pdb, TimeSpan Elapsed)
+// The compiled player code and its line information, ready to be sent to the isolated runner. Methods
+// lists the methods the player declared, in the order the probe counts their calls.
+public sealed record CompileResult(IReadOnlyList<CodeDiagnostic> Errors, byte[]? Assembly, byte[]? Pdb, TimeSpan Elapsed, IReadOnlyList<string>? Methods = null)
 {
     public bool Success => Errors.Count == 0 && Assembly is not null;
 }

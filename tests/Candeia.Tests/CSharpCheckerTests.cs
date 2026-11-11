@@ -24,7 +24,17 @@ static class CSharpCheckerTests
 
     public static void Allowed(TestRunner t)
     {
-        var programs = new (string Name, string Source, CheckOptions? Options)[]
+        foreach (var (name, source, options) in AllowedPrograms())
+        {
+            var result = Check(source, options);
+            t.Check(result.Success, $"accepts {name}: {string.Join(" | ", result.Errors.Select(e => e.Code + " L" + e.Line + " " + e.MessageEn))}");
+        }
+    }
+
+    // Programs the nights accept; the instrumentation suite also compiles each one with the probe.
+    internal static (string Name, string Source, CheckOptions? Options)[] AllowedPrograms()
+    {
+        return new (string Name, string Source, CheckOptions? Options)[]
         {
             ("night method", "public static class Yard { public static bool ShouldLightYard(int light, int hour) { return light < 30 || hour >= 18; } }", null),
             ("variables and casts", InMethod("double ratio = Math.Round(7 / 2.0, 1);\nint whole = (int)ratio;\nlong big = whole * 1000L;\nreturn whole;"), null),
@@ -43,11 +53,6 @@ static class CSharpCheckerTests
             ("radio program", "Console.WriteLine(\"Rádio Candeia\");\nfor (int i = 0; i < 3; i++) Console.WriteLine(i);", new CheckOptions(ConsoleProgram: true)),
             ("using directives that are allowed", "using System;\nusing System.Collections.Generic;\nusing System.Text;\nusing static System.Math;\npublic static class M { public static double R(double x) => Sqrt(x); }", null),
         };
-        foreach (var (name, source, options) in programs)
-        {
-            var result = Check(source, options);
-            t.Check(result.Success, $"accepts {name}: {string.Join(" | ", result.Errors.Select(e => e.Code + " L" + e.Line + " " + e.MessageEn))}");
-        }
     }
 
     public static void Refused(TestRunner t)

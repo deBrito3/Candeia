@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Text;
+using Candeia.Execution;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Emit;
@@ -34,11 +35,48 @@ public sealed class CSharpRuntime : ILanguageRuntime
         return new(errors, watch.Elapsed);
     }
 
+    // Checks and compiles the code as written, without the probe: used to check that a night compiles.
     public CompileResult Compile(string source, CheckOptions options)
     {
         var watch = Stopwatch.StartNew();
         var (compilation, errors) = Analyze(source, options);
         if (errors.Count > 0) return new(errors, null, null, watch.Elapsed);
+        return Emit(compilation, watch, []);
+    }
+
+    // Checks the code, then compiles it with the probe's step counters and marks, for the runner.
+    public CompileResult CompileForRun(string source, CheckOptions options)
+    {
+        var watch = Stopwatch.StartNew();
+        var (compilation, errors) = Analyze(source, options);
+        if (errors.Count > 0) return new(errors, null, null, watch.Elapsed);
+        return EmitInstrumented(compilation.SyntaxTrees.Last(), options, watch);
+    }
+
+    // Skips the language restrictions and the API allow-list. Only the security suite uses it, to prove
+    // the isolated runner contains code that the checker would have refused.
+    internal CompileResult CompileUnchecked(string source, CheckOptions options)
+    {
+        var watch = Stopwatch.StartNew();
+        var tree = CSharpSyntaxTree.ParseText(SourceText.From(source, Encoding.UTF8), ParseOptions, PlayerFileName);
+        return EmitInstrumented(tree, options, watch);
+    }
+
+    // Compiles a tiny program once, during the night's introduction, so the player's first check does not
+    // pay the compiler's start-up cost.
+    public void Warm() => CompileForRun("public static class Warm { public static int Two(int x) { if (x > 0) return x + 1; return 2; } }", new());
+
+    static CompileResult EmitInstrumented(SyntaxTree player, CheckOptions options, Stopwatch watch)
+    {
+        var instrumented = StepInstrumenter.Instrument(player);
+        var tree = CSharpSyntaxTree.ParseText(SourceText.From(instrumented.Source, Encoding.UTF8), ParseOptions, PlayerFileName);
+        var probe = CSharpSyntaxTree.ParseText(SourceText.From(Probe.Source(instrumented.Methods), Encoding.UTF8), ParseOptions, "Probe.cs");
+        var compilation = CSharpCompilation.Create("PlayerCode", [Usings(options), probe, tree], References, CompilationOptions(options));
+        return Emit(compilation, watch, instrumented.Methods);
+    }
+
+    static CompileResult Emit(CSharpCompilation compilation, Stopwatch watch, IReadOnlyList<string> methods)
+    {
         using var assembly = new MemoryStream();
         using var pdb = new MemoryStream();
         var emit = compilation.Emit(assembly, pdb, options: new EmitOptions(debugInformationFormat: DebugInformationFormat.PortablePdb, pdbFilePath: "PlayerCode.pdb"));
@@ -56,20 +94,14 @@ public sealed class CSharpRuntime : ILanguageRuntime
             }
             return new(failures, null, null, watch.Elapsed);
         }
-        return new([], assembly.ToArray(), pdb.ToArray(), watch.Elapsed);
+        return new([], assembly.ToArray(), pdb.ToArray(), watch.Elapsed, methods);
     }
-
-    // Compiles a tiny program once, during the night's introduction, so the player's first check does not
-    // pay the compiler's start-up cost.
-    public void Warm() => Compile("public static class Warm { public static int Two(int x) { if (x > 0) return x + 1; return 2; } }", new());
 
     static (CSharpCompilation Compilation, List<CodeDiagnostic> Errors) Analyze(string? source, CheckOptions options)
     {
         source ??= "";
         var tree = CSharpSyntaxTree.ParseText(SourceText.From(source, Encoding.UTF8), ParseOptions, PlayerFileName);
-        // Every tree needs an encoding, or the line information cannot be emitted.
-        var usings = CSharpSyntaxTree.ParseText(SourceText.From(ImplicitUsings(options), Encoding.UTF8), ParseOptions, "ImplicitUsings.cs");
-        var compilation = CSharpCompilation.Create("PlayerCode", [usings, tree], References, CompilationOptions(options));
+        var compilation = CSharpCompilation.Create("PlayerCode", [Usings(options), tree], References, CompilationOptions(options));
         var errors = new List<CodeDiagnostic>();
         if (string.IsNullOrWhiteSpace(source))
         {
@@ -93,8 +125,10 @@ public sealed class CSharpRuntime : ILanguageRuntime
     }
 
     // Like .NET's implicit usings: the player does not have to write them. LINQ only when the night allows it.
-    static string ImplicitUsings(CheckOptions options) =>
-        "global using System;\nglobal using System.Collections.Generic;\nglobal using System.Text;\n" + (options.AllowLinq ? "global using System.Linq;\n" : "");
+    // Every tree needs an encoding, or the line information cannot be emitted.
+    static SyntaxTree Usings(CheckOptions options) => CSharpSyntaxTree.ParseText(SourceText.From(
+        "global using System;\nglobal using System.Collections.Generic;\nglobal using System.Text;\n" + (options.AllowLinq ? "global using System.Linq;\n" : ""),
+        Encoding.UTF8), ParseOptions, "ImplicitUsings.cs");
 
     static CSharpCompilationOptions CompilationOptions(CheckOptions options) =>
         new CSharpCompilationOptions(options.ConsoleProgram ? OutputKind.ConsoleApplication : OutputKind.DynamicallyLinkedLibrary)

@@ -2,7 +2,7 @@
 
 Jogo de terror e programação para Windows. Você volta ao casarão da infância, no Recife, e sobrevive às noites escrevendo C# que compila e roda de verdade, enquanto o Papa-Figo se aproxima. Arte vetorial desenhada pelo próprio jogo e sons sintetizados em código, sem assets externos.
 
-**Estado:** entrega 1 de 11. O jogo já verifica e compila C# com o Roslyn, recusa o que está fora da lista de APIs permitidas e explica os erros em português e inglês. Ainda não executa o código do jogador nem tem noites jogáveis.
+**Estado:** entrega 2 de 11. O jogo verifica, compila e executa C# de verdade: o código do jogador roda num processo isolado, com limites de passos, tempo, memória e permissões, e cada teste volta com o resultado. Ainda não há noites jogáveis.
 
 ## Requisitos
 
@@ -17,6 +17,7 @@ Jogo de terror e programação para Windows. Você volta ao casarão da infânci
 ./scripts/run.ps1 --shot test-artifacts/boot.png  # salva a tela inicial numa imagem
 ./scripts/check.ps1                               # verifica as amostras de samples/csharp como uma noite faria
 ./scripts/check.ps1 meu-arquivo.cs --en           # verifica um arquivo, com as mensagens em inglês
+./scripts/security-test.ps1                       # ataca o executor isolado e mostra o que cada camada bloqueou
 ```
 
 Para medir os tempos de compilação (a primeira compilação e a média das seguintes):
@@ -34,6 +35,17 @@ O código do jogador passa por três filtros antes de ser compilado, e os erros 
 3. **Lista de APIs permitidas:** tipos simples, textos, `Math`, coleções, `StringBuilder` e `Console.Write`/`WriteLine`. Arquivos, rede, processos, reflexão, ambiente, threads, sorteio e relógio são recusados. O LINQ só abre no Ato 3.
 
 Os códigos `CND` são do próprio jogo. Os códigos `CS` são do compilador C#.
+
+## Execução isolada
+
+O código aprovado é compilado com contadores de passos e marcadores, e roda noutro processo: o próprio executável, aberto com `--runner`. Esse processo:
+
+- roda com **baixa integridade**: não consegue gravar nas pastas do usuário nem abrir o processo do jogo;
+- fica num **Job Object**: morre junto com o jogo, não abre outros programas, tem memória (256 MB) e tempo de processador limitados, e não acessa área de transferência nem configurações da área de trabalho;
+- herda só os próprios canais de comunicação e um ambiente mínimo;
+- para sozinho ao passar do limite de passos (1 milhão por teste) ou quando a pilha está quase cheia, e o jogo o encerra se passar de 3 segundos.
+
+A baixa integridade não impede ler arquivos, acessar a rede nem encerrar outros programas do usuário. Contra isso, a barreira é a lista de APIs permitidas. A suíte de ataques mostra cada caso.
 
 ## Estrutura
 
