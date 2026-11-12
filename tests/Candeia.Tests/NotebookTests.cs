@@ -21,5 +21,8 @@ static class NotebookTests
         t.Check(Title("if")?.StartsWith("if") == true && Title("else")?.StartsWith("else") == true, "if and else have their pages");
         t.Check(Title(">=") == Title("==") && Title("==")?.StartsWith("Compara") == true && Title("||") == Title("!") && Title("&&")?.StartsWith("E, ou") == true, "comparisons and logic have their pages");
         t.Check(Title("=") != Title("=="), "= (store) and == (compare) open different pages");
+        var secrets = notebook.Pages.Where(p => p.Secret > 0).ToList();
+        t.Check(secrets.Select(p => p.Secret).SequenceEqual([6, 12]) && secrets.All(p => p.Keywords.Count == 0 && p.Text.Pt.Length > 200 && p.Text.En.Length > 200), "two secret pages, opened by 6 and 12 marks, with no F1 keywords");
+        t.Check(notebook.Pages.SkipWhile(p => p.Secret == 0).All(p => p.Secret > 0), "the secret pages come last in the index");
     }
 }

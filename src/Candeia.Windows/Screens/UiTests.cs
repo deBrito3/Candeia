@@ -33,9 +33,57 @@ static class UiTests
         Application.Run(screen);
         // The window can close before the checks end (an error in a frame, say): that is a failure too.
         if (!finished && failures.Count == 0) failures.Add($"the checks stopped before the end, after “{last}”");
+        if (finished) Windows(nights, Check, failures);
         string report = failures.Count == 0 ? $"PASS: {passed} UI checks." : $"FAIL: {failures.Count} of {passed + failures.Count} UI checks.\n" + string.Join("\n", failures.Select(f => "  - " + f));
         File.WriteAllText(reportPath, report + "\n", new UTF8Encoding(false));
         return failures.Count == 0 ? 0 : 1;
+    }
+
+    // The real windows of a campaign, with a save in a temporary folder and the sound at zero: the menu
+    // opens a night in its own window and hides; M in the pause brings the menu back; the save keeps the code.
+    static void Windows(IReadOnlyList<NightDefinition> nights, Action<bool, string> check, List<string> failures)
+    {
+        string folder = Path.Combine(Path.GetTempPath(), "candeia-ui-save-" + Guid.NewGuid().ToString("N")[..8]);
+        var store = new Progress.SaveStore(folder);
+        var (campaign, _) = Progress.Campaign.Load(nights, store);
+        campaign.ChangeSettings(campaign.Settings with { HouseVolume = 0, SystemVolume = 0, CreatureVolume = 0, MusicVolume = 0 });
+        Options.Use(campaign);
+        bool finished = false;
+        using var window = new MainWindow(campaign);
+        window.Shown += async (_, _) =>
+        {
+            try
+            {
+                var menu = window.CandeiaMenu!;
+                menu.Key(Keys.Enter);
+                menu.Key(Keys.Enter);
+                await Task.Delay(2500);
+                var night = Application.OpenForms.OfType<NightScreen>().FirstOrDefault();
+                check(night is not null && night.Visible && !window.Visible && campaign.Started, "the menu opens the night in its own window and hides");
+                if (night is null) return;
+                night.Command(Keys.Enter);
+                night.Editor.Select(0, 0);
+                night.Editor.SelectedText = "// from the window test\n";
+                night.Run();
+                var watch = Stopwatch.StartNew();
+                while (night.Session.Busy && watch.Elapsed.TotalSeconds < 15) await Task.Delay(50);
+                check(night.Command(Keys.Escape) && night.Paused && night.Title.PresenceText.Contains("M menu"), "Esc pauses, and the pause shows M for the menu");
+                night.Command(Keys.M);
+                await Task.Delay(800);
+                check(window.Visible && menu.Current == CandeiaMenu.Page.Main && night.IsDisposed, "M goes back to the menu, and the night's window closes");
+                campaign.Flush();
+                var (saved, problem) = store.Load();
+                check(problem is null && saved.Started && saved.Nights.TryGetValue(nights[0].Id, out var record) && record.Code!.StartsWith("// from the window test", StringComparison.Ordinal),
+                    "the save on disk keeps the campaign and the night's code");
+                finished = true;
+            }
+            catch (Exception ex) { failures.Add($"windows: {ex.GetType().Name}: {ex.Message}"); }
+            finally { window.Close(); }
+        };
+        Application.Run(window);
+        if (!finished && !failures.Any(f => f.StartsWith("windows", StringComparison.Ordinal))) failures.Add("the window checks stopped before the end");
+        Options.Use(new Progress.Campaign(nights, store: null));
+        try { Directory.Delete(folder, recursive: true); } catch (IOException) { }
     }
 
     static async Task Checks(NightScreen screen, Action<bool, string> check)
@@ -205,11 +253,129 @@ static class UiTests
         check(yard.Contains("\n  O que devolve: Se está escuro lá fora") && !yard.Contains("Método"), "a wide table reads as one block per row");
 
         // Vigil: the first night starts from zero, with four candles and free hints.
-        Options.Difficulty = Difficulty.Vigil;
+        Options.Change(Options.Settings with { Difficulty = Difficulty.Vigil });
         screen.Open(screen.Nights[0]);
         await Task.Delay(300);
         check(screen.Info.ReadmeBox.Text.StartsWith("Do zero", StringComparison.Ordinal) && screen.Info.ReadmeBox.Text.Contains("A caixa da lâmpada"), "in Vigil, the LEIA-ME starts from zero and keeps the night's own");
         check(screen.Session.Clock.CandlesLeft == 4 && screen.Session.HintCost == 0, "Vigil has four candles and free hints");
-        Options.Difficulty = Difficulty.Night;
+        Options.Change(Options.Settings with { Difficulty = Difficulty.Night });
+
+        await Campaign(screen, check);
+        await Settings(screen, check);
+        Menu(check);
+    }
+
+    // The campaign behind the screen: the code kept at each run and after edits, the hint layers, the win
+    // and the notebook's secret pages.
+    static async Task Campaign(NightScreen screen, Action<bool, string> check)
+    {
+        var campaign = screen.Campaign;
+        var first = screen.Nights[0];
+        check(campaign.Won(first) && campaign.Record(first).Best is { Marks: > 0 } && campaign.Unlocked(screen.Nights[1]), "the won night is kept with its best result, and the next one opens");
+        check(campaign.CodeFor(first) == screen.Editor.Text, "the code that won is kept for the night");
+        check(campaign.Record(first).HintsShown == 3, "the hint layers opened are kept");
+        string index = (screen.Command(Keys.Control | Keys.D4) ? screen.Info.NotebookBox.Text : "");
+        check(index.Contains($"Página secreta: abre com 6 marcas (você tem {campaign.Marks})") && index.Contains("abre com 12 marcas"), "the secret pages show how many marks open them");
+
+        // A few seconds after an edit, the code goes to the campaign.
+        screen.Open(screen.Nights[1]);
+        await Task.Delay(300);
+        screen.Editor.Select(0, 0);
+        screen.Editor.SelectedText = "// kept\n";
+        await Task.Delay(3600);
+        check(campaign.CodeFor(screen.Nights[1]).StartsWith("// kept", StringComparison.Ordinal), "an edit reaches the save a few seconds later");
+        screen.Open(screen.Nights[2]);
+        screen.Open(screen.Nights[1]);
+        check(screen.Editor.Text.StartsWith("// kept", StringComparison.Ordinal), "a night opens again with the player's code");
+    }
+
+    // The settings, applied at once: the language, the editor's font and the high contrast.
+    static async Task Settings(NightScreen screen, Action<bool, string> check)
+    {
+        float font = screen.Editor.Font.Size;
+        check(screen.Command(Keys.Control | Keys.Oemplus) && Options.Settings.FontStep == 2, "Ctrl+= makes the editor's font bigger");
+        await Task.Delay(200);
+        check(screen.Editor.Font.Size > font, $"the editor's font grows: {font:0.0} to {screen.Editor.Font.Size:0.0}");
+        screen.Command(Keys.Control | Keys.OemMinus);
+        await Task.Delay(200);
+        check(Math.Abs(screen.Editor.Font.Size - font) < 0.01 && Options.Settings.FontStep == 1, "Ctrl+- brings it back");
+
+        Options.Change(Options.Settings with { HighContrast = true });
+        check(screen.Editor.BackColor.ToArgb() == Color.Black.ToArgb() && CodeEditor.KeywordColor.ToArgb() != Color.FromArgb(255, 224, 156).ToArgb(), "high contrast turns the editor black, with strong colours");
+        Options.Change(Options.Settings with { HighContrast = false });
+        check(screen.Editor.BackColor.ToArgb() == CodeEditor.Back.ToArgb() && CodeEditor.Back.ToArgb() != Color.Black.ToArgb(), "and back to the amber glass");
+
+        Options.Change(Options.Settings with { Language = "en" });
+        await Task.Delay(200);
+        check(screen.Info.ReadmeBox.Text.StartsWith("Night 2", StringComparison.Ordinal) && screen.Info.ReadmeBox.Text.Contains("starts the night"), "in English, the LEIA-ME is the README");
+        check(screen.Title.TitleText.Contains("Night 2 · The system battery") && screen.Title.PresenceText.StartsWith("PRESENCE", StringComparison.Ordinal), "the title bar and the sensors speak English");
+        screen.Command(Keys.Control | Keys.D3);
+        check(screen.Info.HintsBox.Text.Contains("The hints open one at a time") && screen.Info.HintsBox.Text.Contains("for −"), "the hints speak English, with their price");
+        screen.Command(Keys.Control | Keys.D4);
+        check(screen.Info.NotebookBox.Text.StartsWith("The notebook", StringComparison.Ordinal) && screen.Info.NotebookBox.Text.Contains("Secret page"), "and the notebook");
+        screen.Command(Keys.Enter);
+        screen.Run();
+        var watch = Stopwatch.StartNew();
+        while (screen.Session.Busy && watch.Elapsed.TotalSeconds < 15) await Task.Delay(50);
+        check(screen.Info.OutputBox.Text.Contains("lamps lit"), "the output speaks English");
+        Options.Change(Options.Settings with { Language = "pt" });
+        await Task.Delay(200);
+        check(screen.Title.TitleText.Contains("Noite 2"), "and back to Portuguese");
+    }
+
+    // The CANDEIA menu, driven without a window: a new campaign, the difficulty, the options and the nights.
+    static void Menu(Action<bool, string> check)
+    {
+        var nights = NightLoader.LoadAll().Where(r => r.Ok).Select(r => r.Night!).ToList();
+        var campaign = new Progress.Campaign(nights, store: null);
+        var menu = new CandeiaMenu(campaign);
+        (NightDefinition Night, bool Fresh)? played = null;
+        menu.Play += (n, fresh) => played = (n, fresh);
+        check(menu.Current == CandeiaMenu.Page.Boot && menu.Key(Keys.Enter) && menu.Current == CandeiaMenu.Page.Difficulty, "a new campaign asks for the difficulty first");
+        check(menu.Lines().Count == 2 && menu.Lines()[0].StartsWith("Vigília", StringComparison.Ordinal) && menu.Selected == 1, "Vigil is listed first, and Night, the default, comes chosen");
+        menu.Key(Keys.Up);
+        menu.Key(Keys.Enter);
+        check(campaign.Started && Options.Settings.Difficulty == Difficulty.Vigil && played is { Night.Order: 1, Fresh: false }, "choosing Vigil begins the campaign with night 1");
+        check(menu.Current == CandeiaMenu.Page.Main && menu.Lines()[0].Contains("Noite 1, A luz do quarto"), "back from the night, Continue points to it");
+
+        menu.Key(Keys.Down);
+        menu.Key(Keys.Enter);
+        var lines = menu.Lines();
+        check(menu.Current == CandeiaMenu.Page.Nights && lines.Count == nights.Count && lines[0].Contains("aberta") && lines[1].Contains("vença a noite anterior"), "the nights: the first open, the others waiting for the one before");
+        played = null;
+        menu.Key(Keys.Down);
+        menu.Key(Keys.Enter);
+        check(played is null, "a locked night does not open");
+        campaign.RecordWin(nights[0], new NightMarks(true, false, true), 150, 1);
+        menu.Show(CandeiaMenu.Page.Nights);
+        check(menu.Selected == 1 && menu.Lines()[0].Contains("● ○ ●") && menu.Lines()[0].Contains("2:30") && menu.Lines()[1].Contains("aberta"), "a won night shows its marks and time, and the next one opens");
+        menu.Key(Keys.Up);
+        menu.Key(Keys.R);
+        check(played is null && menu.Notice is not null, "R once only warns");
+        menu.Key(Keys.R);
+        check(played is { Night.Order: 1, Fresh: true }, "R again replays from the original code");
+
+        menu.Key(Keys.Escape);
+        menu.Key(Keys.Down);
+        menu.Key(Keys.Down);
+        menu.Key(Keys.Enter);
+        check(menu.Current == CandeiaMenu.Page.Options && menu.Lines().Count == 10, "the options have their ten rows");
+        menu.Key(Keys.Right);
+        check(Options.Settings.English && menu.Lines()[0] == "Language: English" && campaign.Settings.English, "the language changes at once, and the campaign keeps it");
+        menu.Key(Keys.Down);
+        menu.Key(Keys.Right);
+        check(Options.Settings.Difficulty == Difficulty.Night, "the difficulty changes in the options");
+        for (int i = 0; i < 7; i++) menu.Key(Keys.Down);
+        menu.Key(Keys.Left);
+        menu.Key(Keys.Left);
+        check(Math.Abs(Options.Settings.CreatureVolume - 0.8) < 1e-9 && menu.Lines()[8].EndsWith("80%", StringComparison.Ordinal), "a volume goes down in steps of ten");
+        menu.Key(Keys.Up);
+        menu.Key(Keys.Up);
+        menu.Key(Keys.Up);
+        menu.Key(Keys.Right);
+        check(Options.Settings.SoftScares, "soft scares from the options");
+        Options.Change(new Progress.Settings());
+        menu.Key(Keys.Escape);
+        check(menu.Current == CandeiaMenu.Page.Main, "Esc goes back to the menu");
     }
 }

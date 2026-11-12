@@ -3,8 +3,9 @@ using System.Text.Json;
 namespace Candeia.Challenges;
 
 // A page of the notebook left beside the keyboard: a concept explained in the voice of the person who
-// wrote CANDEIA. Keywords are the words of the code that open it with F1.
-public sealed record NotebookPage(string Id, int Act, IReadOnlyList<string> Keywords, Bilingual Title, Bilingual Text);
+// wrote CANDEIA. Keywords are the words of the code that open it with F1. Secret is how many marks open
+// the page (the hidden part of the story); 0 for the pages that are always there.
+public sealed record NotebookPage(string Id, int Act, IReadOnlyList<string> Keywords, Bilingual Title, Bilingual Text, int Secret = 0);
 
 // The notebook, read from content/notebook/: pages.json lists the pages and their keywords; each page is
 // <id>.pt.md and <id>.en.md, starting with its "# Title". Remembering a concept never costs anything.
@@ -32,10 +33,13 @@ public static class Notebook
                 string id = entry.GetProperty("id").GetString() ?? "";
                 int act = entry.TryGetProperty("act", out var a) ? a.GetInt32() : 1;
                 var keywords = entry.TryGetProperty("keywords", out var k) ? k.EnumerateArray().Select(w => w.GetString() ?? "").Where(w => w.Length > 0).ToList() : [];
+                int secret = entry.TryGetProperty("secret", out var s) ? s.GetInt32() : 0;
+                if (secret < 0) errors.Add($"{id}: secret must be a number of marks, 0 or more");
+                if (secret > 0 && keywords.Count > 0) errors.Add($"{id}: a secret page is found by its marks, not by F1 keywords");
                 var pt = Page(root, id, "pt", errors);
                 var en = Page(root, id, "en", errors);
                 if (pt is null || en is null) continue;
-                pages.Add(new(id, act, keywords, new(pt.Value.Title, en.Value.Title), new(pt.Value.Text, en.Value.Text)));
+                pages.Add(new(id, act, keywords, new(pt.Value.Title, en.Value.Title), new(pt.Value.Text, en.Value.Text), Math.Max(0, secret)));
             }
         }
         catch (Exception ex) when (ex is JsonException or KeyNotFoundException or InvalidOperationException)

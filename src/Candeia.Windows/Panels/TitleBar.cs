@@ -18,6 +18,9 @@ sealed class TitleBar : Control
 
     public void Restyle(SystemStyle value) { style = value; Invalidate(); }
 
+    public string TitleText => title;
+    public string PresenceText => presence;
+
     public void Show(string titleText, string presenceText)
     {
         if (titleText == title && presenceText == presence) return;

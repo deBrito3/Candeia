@@ -6,6 +6,7 @@ using Candeia.Execution;
 using Candeia.Languages.CSharp;
 using Candeia.Night;
 using Candeia.Panels;
+using Candeia.Progress;
 using Candeia.Scene;
 
 namespace Candeia.Screens;
@@ -15,10 +16,17 @@ namespace Candeia.Screens;
 // itself is a NightSession; this screen only shows it and passes on the keys:
 //   F5 run · Esc pause · Ctrl+1 LEIA-ME · Ctrl+2 SAÍDA · Ctrl+3 DICAS (again: take a sweet, the next hint)
 //   Ctrl+4 CADERNO · F1 the notebook page of the word under the caret · Ctrl+5 REVISÃO
-//   Enter start, next night, or start over · F11 full screen
+//   Enter start, next night, or start over · Esc pause, and there M the CANDEIA menu
+//   Ctrl+= and Ctrl+- the editor's font · F11 full screen
+// The campaign keeps the player's code (at every run and a few seconds after each edit), the hint layers
+// and the wins.
 sealed class NightScreen : Form
 {
-    static readonly string[] Places = ["RUA", "PORTÃO", "QUINTAL", "JANELA", "PORTA", "AO SEU LADO"];
+    static readonly Bilingual[] Places =
+    [
+        new("RUA", "STREET"), new("PORTÃO", "GATE"), new("QUINTAL", "YARD"),
+        new("JANELA", "WINDOW"), new("PORTA", "DOOR"), new("AO SEU LADO", "BESIDE YOU"),
+    ];
 
     readonly CSharpRuntime runtime;
     readonly RunnerHost host;
@@ -28,6 +36,11 @@ sealed class NightScreen : Form
     readonly Stopwatch clock = Stopwatch.StartNew();
     readonly SceneTimings timings = new();
     readonly System.Windows.Forms.Timer rebuild = new() { Interval = 150 };
+    readonly System.Windows.Forms.Timer keep = new() { Interval = 3000 };
+    readonly Campaign campaign;
+    Difficulty openedAt;
+    bool highContrast;
+    double fontScale = 1;
     readonly CodeEditor editor = new();
     readonly CodeGutter gutter;
     readonly CodeCompletion completion;
@@ -48,8 +61,10 @@ sealed class NightScreen : Form
     readonly SoundDirector sound;
     readonly WaveOutPlayer player;
 
-    public NightScreen(NightDefinition first, IEnumerable<NightDefinition> all, bool benchmark = false)
+    // Without a campaign, one kept only in memory: the tests and the benches never touch the real save.
+    public NightScreen(NightDefinition first, IEnumerable<NightDefinition> all, bool benchmark = false, Campaign? campaign = null)
     {
+        this.campaign = campaign ?? new Campaign(all.ToList(), store: null);
         Text = GameInfo.Name;
         BackColor = Color.Black;
         KeyPreview = true;
@@ -77,8 +92,12 @@ sealed class NightScreen : Form
         };
         info.LineChosen += GoToLine;
         info.FixChosen += ApplyFix;
-        info.PageChosen += p => info.ShowNotebook(notebook, p);
-        info.ShowNotebook(notebook, null);
+        info.PageChosen += p => info.ShowNotebook(notebook, this.campaign.Marks, p);
+        info.ShowNotebook(notebook, this.campaign.Marks, null);
+        // A few seconds after the last edit, the code goes to the save.
+        editor.TextChanged += (_, _) => { keep.Stop(); keep.Start(); };
+        keep.Tick += (_, _) => { keep.Stop(); KeepCode(); };
+        Options.Changed += ApplySettings;
         if (benchmark)
         {
             FormBorderStyle = FormBorderStyle.None;
@@ -95,6 +114,9 @@ sealed class NightScreen : Form
         }
         loop = new FrameLoop(this, Frame);
         rebuild.Tick += (_, _) => { rebuild.Stop(); Rebuild(); };
+        highContrast = CodeEditor.HighContrast = Options.Settings.HighContrast;
+        editor.Recolour();
+        SetLevels();
         Open(first);
         _ = Task.Run(() =>
         {
@@ -107,16 +129,28 @@ sealed class NightScreen : Form
     public NightSession Session => session;
     public CodeEditor Editor => editor;
     public InfoPane Info => info;
+    public TitleBar Title => title;
     public IReadOnlyList<NightDefinition> Nights => nights;
     public FrameStats Stats { get; } = new();
     public double Seconds => clock.Elapsed.TotalSeconds;
 
+    public Campaign Campaign => campaign;
+    // The player asked for the CANDEIA menu (M in the pause, or Enter after the act's last night).
+    public bool ToMenu { get; private set; }
+
+    // Opens a night with the player's own code and the hint layers it had open.
     internal void Open(NightDefinition night)
     {
-        session = new NightSession(night, rules, Options.Difficulty, runtime, host.Run);
+        campaign.Opened(night);
+        openedAt = Options.Difficulty;
+        session = new NightSession(night, rules, openedAt, runtime, host.Run, Options.English);
+        session.RestoreHints(campaign.Record(night).HintsShown);
+        if (campaign.Next(night) is null)
+            session.AfterWin = new("Este é o fim do Ato 1. Enter volta ao menu do CANDEIA.", "This is the end of Act 1. Enter goes back to the CANDEIA menu.");
         editor.ReadOnly = false;
-        editor.Load(night.Starter);
-        info.ShowReadme(night.ReadmeFor(Options.Difficulty).Pt + "\n\n**Enter** começa a noite. Ler não gasta tempo.");
+        editor.Load(campaign.CodeFor(night));
+        keep.Stop();
+        ShowReadme();
         info.ShowOutput([]);
         info.Choose(InfoPane.Tab.Readme);
         outputVersion = lampsVersion = hintsShown = reviewVersion = -1;
@@ -129,6 +163,68 @@ sealed class NightScreen : Form
         scareAt = -10;
         UpdatePanels();
         editor.Focus();
+    }
+
+    void ShowReadme() =>
+        info.ShowReadme(Options.Of(session.Night.ReadmeFor(openedAt)) + Options.T("\n\n**Enter** começa a noite. Ler não gasta tempo.", "\n\n**Enter** starts the night. Reading costs no time."));
+
+    // The code goes to the save: at each run, a few seconds after an edit, and when the night is left.
+    void KeepCode()
+    {
+        if (session is not null) campaign.KeepCode(session.Night, editor.Text);
+    }
+
+    // The player changed a setting: the font, the colours, the language, the volumes, from now on.
+    void ApplySettings()
+    {
+        if (IsDisposed) return;
+        var settings = Options.Settings;
+        if (settings.HighContrast != highContrast)
+        {
+            highContrast = CodeEditor.HighContrast = settings.HighContrast;
+            editor.Recolour();
+            gutter.Invalidate();
+        }
+        if (settings.FontScale != fontScale) Rebuild();
+        SetLevels();
+        if (session.English != settings.English)
+        {
+            session.English = settings.English;
+            ShowReadme();
+            hintsShown = reviewVersion = lampsVersion = -1;
+            info.ShowNotebook(notebook, campaign.Marks, null);
+            info.Invalidate();
+            lampStrip.Invalidate();
+            UpdatePanels();
+        }
+    }
+
+    void SetLevels()
+    {
+        var s = Options.Settings;
+        sound.SetLevels(s.HouseVolume, s.SystemVolume, s.CreatureVolume, s.MusicVolume);
+    }
+
+    // A won night goes to the campaign, and the output says what it brought: a better result, a page of the
+    // notebook opened by the marks.
+    void Won()
+    {
+        var night = session.Night;
+        bool wonBefore = campaign.Won(night);
+        int marksBefore = campaign.Marks;
+        bool best = campaign.RecordWin(night, session.Marks, session.Clock.Remaining, session.Attempt);
+        if (wonBefore && best) session.Note(OutputKind.Win, "Melhor resultado desta noite até agora.", "Your best result on this night so far.");
+        foreach (var page in notebook.Where(p => p.Secret > marksBefore && p.Secret <= campaign.Marks))
+            session.Note(OutputKind.Win, $"Uma página apareceu no fim do caderno: {page.Title.Pt} (Ctrl+4).", $"A page appeared at the end of the notebook: {page.Title.En} (Ctrl+4).");
+        info.ShowNotebook(notebook, campaign.Marks, null);
+    }
+
+    // Leaves the night for the CANDEIA menu; the code stays in the save.
+    void ReturnToMenu()
+    {
+        KeepCode();
+        ToMenu = true;
+        Close();
     }
 
     protected override CreateParams CreateParams
@@ -173,7 +269,8 @@ sealed class NightScreen : Form
         else renderer.Resize(ClientSize);
         var layout = renderer.Layout;
         var old = style;
-        style = new SystemStyle(layout.Scale);
+        fontScale = Options.Settings.FontScale;
+        style = new SystemStyle(layout.Scale, fontScale);
         title.Restyle(style);
         lampStrip.Restyle(style);
         editor.Font = style.Code;
@@ -210,6 +307,7 @@ sealed class NightScreen : Form
         {
             if (e.Kind == ClockEventKind.NearCapture) { scareAt = now; capture = false; }
             if (e.Kind == ClockEventKind.Captured) { scareAt = now; capture = true; }
+            if (e.Kind == ClockEventKind.Won) Won();
         }
         foreach (var cue in tick.Cues) React(cue, now);
         UpdatePanels();
@@ -230,7 +328,7 @@ sealed class NightScreen : Form
             Candy: session.Clock.SweetPending && session.HintAvailable,
             Panels: scare.Panels);
         renderer.Render(state, timings);
-        renderer.DrawCaptions(sound.Captions(now), now);
+        if (Options.Settings.Captions) renderer.DrawCaptions(sound.Captions(now), now);
         long start = Stopwatch.GetTimestamp();
         IntPtr hdc = Native.GetDC(Handle);
         try { renderer.Present(hdc); }
@@ -314,7 +412,7 @@ sealed class NightScreen : Form
     }
 
     string Presence(Station station) =>
-        $"PRESENÇA: {Places[(int)station]} · {Minutes(session.Clock.Remaining)}";
+        $"{Options.T("PRESENÇA", "PRESENCE")}: {Options.Of(Places[(int)station])} · {Minutes(session.Clock.Remaining)}";
 
     static string Minutes(double seconds)
     {
@@ -328,13 +426,13 @@ sealed class NightScreen : Form
         var clockState = session.Clock.State;
         string presence = clockState switch
         {
-            ClockState.Won => "PRESENÇA: NINGUÉM",
-            ClockState.Captured => "PRESENÇA: AO SEU LADO",
-            _ when paused => "PAUSA · Esc continua",
-            ClockState.Respite => Presence(session.Director.State.Station) + " · RESPIRE",
+            _ when paused => Options.T("PAUSA · Esc continua · M menu", "PAUSED · Esc resumes · M menu"),
+            ClockState.Won => Options.T("PRESENÇA: NINGUÉM", "PRESENCE: NOBODY"),
+            ClockState.Captured => Options.T("PRESENÇA: AO SEU LADO", "PRESENCE: BESIDE YOU"),
+            ClockState.Respite => Presence(session.Director.State.Station) + Options.T(" · RESPIRE", " · BREATHE"),
             _ => Presence(session.Director.State.Station),
         };
-        title.Show($"{GameInfo.SystemName} · Noite {night.Order} · {night.Title.Pt}", presence);
+        title.Show($"{GameInfo.SystemName} · {Options.T("Noite", "Night")} {night.Order} · {Options.Of(night.Title)}", presence);
         if (session.LampsVersion != lampsVersion)
         {
             lampsVersion = session.LampsVersion;
@@ -351,6 +449,7 @@ sealed class NightScreen : Form
         {
             hintsShown = session.HintsShown;
             hintsOffered = offered;
+            campaign.KeepHints(night, hintsShown);
             info.ShowHints(night.Hints, hintsShown, session.HintAvailable, session.HintCost);
         }
         if (session.ReviewVersion != reviewVersion)
@@ -366,7 +465,7 @@ sealed class NightScreen : Form
     // F1: the notebook page of a word of the code, or the notebook's index when no page has that word.
     public void OpenNotebook(string word)
     {
-        info.ShowNotebook(notebook, Notebook.For(notebook, word));
+        info.ShowNotebook(notebook, campaign.Marks, Notebook.For(notebook, word));
         info.Choose(InfoPane.Tab.Notebook);
     }
 
@@ -396,7 +495,9 @@ sealed class NightScreen : Form
 
     public void Run()
     {
-        if (session.Execute(editor.Text)) info.Choose(InfoPane.Tab.Output);
+        if (!session.Execute(editor.Text)) return;
+        KeepCode();
+        info.Choose(InfoPane.Tab.Output);
     }
 
     protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
@@ -414,10 +515,19 @@ sealed class NightScreen : Form
             case Keys.F5:
                 Run();
                 return true;
-            case Keys.Escape when state is ClockState.Coding or ClockState.Respite or ClockState.Results:
+            case Keys.Escape:
                 paused = !paused;
                 session.Pause(paused);
                 UpdatePanels();
+                return true;
+            case Keys.M when paused:
+                ReturnToMenu();
+                return true;
+            case Keys.Control | Keys.Oemplus or Keys.Control | Keys.Add:
+                Options.Change(Options.Settings with { FontStep = Options.Settings.FontStep + 1 });
+                return true;
+            case Keys.Control | Keys.OemMinus or Keys.Control | Keys.Subtract:
+                Options.Change(Options.Settings with { FontStep = Options.Settings.FontStep - 1 });
                 return true;
             case Keys.Control | Keys.D1:
                 info.Choose(InfoPane.Tab.Readme);
@@ -432,7 +542,7 @@ sealed class NightScreen : Form
                 UpdatePanels();
                 return true;
             case Keys.Control | Keys.D4:
-                info.ShowNotebook(notebook, null);
+                info.ShowNotebook(notebook, campaign.Marks, null);
                 info.Choose(InfoPane.Tab.Notebook);
                 return true;
             case Keys.Control | Keys.D5:
@@ -441,14 +551,14 @@ sealed class NightScreen : Form
             case Keys.F1:
                 OpenNotebook(Notebook.WordAt(editor.Text, editor.SelectionStart));
                 return true;
-            case Keys.Enter when state == ClockState.Intro:
+            case Keys.Enter when state == ClockState.Intro && !paused:
                 session.Start();
                 editor.Focus();
                 return true;
-            case Keys.Enter when state == ClockState.Won:
+            case Keys.Enter when state == ClockState.Won && !paused:
                 NextNight();
                 return true;
-            case Keys.Enter when state == ClockState.Captured:
+            case Keys.Enter when state == ClockState.Captured && !paused:
                 session.Restart();
                 scareAt = -10;
                 ShowPanels(true);
@@ -465,11 +575,11 @@ sealed class NightScreen : Form
 
     public bool Paused => paused;
 
+    // After a win: the next night, or the menu after the act's last.
     void NextNight()
     {
-        int index = nights.FindIndex(n => n.Id == session.Night.Id);
-        if (index >= 0 && index + 1 < nights.Count) Open(nights[index + 1]);
-        else info.ShowOutput([.. session.Output, new OutputLine(OutputKind.Plain, "Esta versão de teste termina aqui. Obrigado por jogar.")]);
+        if (campaign.Next(session.Night) is { } next && campaign.Unlocked(next)) Open(next);
+        else ReturnToMenu();
     }
 
     FormWindowState windowedState = FormWindowState.Maximized;
@@ -506,6 +616,8 @@ sealed class NightScreen : Form
 
     protected override void OnFormClosing(FormClosingEventArgs e)
     {
+        KeepCode();
+        campaign.Flush();
         loop.Dispose();
         base.OnFormClosing(e);
     }
@@ -514,8 +626,10 @@ sealed class NightScreen : Form
     {
         if (disposing)
         {
+            Options.Changed -= ApplySettings;
             loop.Dispose();
             rebuild.Dispose();
+            keep.Dispose();
             completion.Dispose();
             renderer?.Dispose();
             host.Dispose();

@@ -1,20 +1,25 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using Candeia.Challenges;
+using Candeia.Progress;
+using Candeia.Screens;
 
 namespace Candeia;
 
-// The CANDEIA boot screen. Enter turns the house system on: the first night opens and this window closes
-// with it.
+// The CANDEIA window before and between the nights: the boot screen and the menu (CandeiaMenu). A night
+// opens in its own window; leaving it for the menu brings this one back, and closing it closes the game.
 sealed class MainWindow : Form
 {
     readonly System.Windows.Forms.Timer blink = new() { Interval = BootScreen.BlinkMilliseconds };
     readonly Stopwatch clock = Stopwatch.StartNew();
-    readonly Func<Form>? next;
+    readonly Campaign? campaign;
+    readonly CandeiaMenu? menu;
+    readonly Action repaint;
 
-    public MainWindow(Func<Form>? next = null)
+    // Without a campaign, only the boot screen (the --shot pictures).
+    public MainWindow(Campaign? campaign = null, SaveProblem? problem = null)
     {
-        this.next = next;
-        KeyPreview = true;
+        this.campaign = campaign;
         Text = GameInfo.Name;
         ClientSize = new Size(1280, 800);
         MinimumSize = new Size(1024, 640);
@@ -23,7 +28,15 @@ sealed class MainWindow : Form
         SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw | ControlStyles.UserPaint, true);
         blink.Tick += (_, _) => Invalidate();
         blink.Start();
+        repaint = () => Invalidate();
+        Options.Changed += repaint;
+        if (campaign is null) return;
+        menu = new CandeiaMenu(campaign, problem);
+        menu.Play += Play;
+        menu.Quit += Close;
     }
+
+    public CandeiaMenu? CandeiaMenu => menu;
 
     protected override void OnHandleCreated(EventArgs e)
     {
@@ -31,33 +44,57 @@ sealed class MainWindow : Form
         DarkTitleBar(Handle, Palette.Night);
     }
 
-    protected override void OnPaint(PaintEventArgs e) => BootScreen.Paint(e.Graphics, ClientSize, clock.Elapsed);
-
-    protected override void OnKeyDown(KeyEventArgs e)
+    protected override void OnPaint(PaintEventArgs e)
     {
-        base.OnKeyDown(e);
-        if (e.KeyCode == Keys.S)
+        if (menu is null) BootScreen.Paint(e.Graphics, ClientSize, clock.Elapsed);
+        else menu.Paint(e.Graphics, ClientSize, clock.Elapsed);
+    }
+
+    protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+    {
+        if (Visible && menu is not null && menu.Key(keyData))
         {
-            Options.SoftScares = !Options.SoftScares;
             Invalidate();
-            return;
+            return true;
         }
-        if (e.KeyCode == Keys.V)
+        return base.ProcessCmdKey(ref msg, keyData);
+    }
+
+    // A night in its own window. Leaving it for the menu brings this window back; closing it ends the game.
+    void Play(NightDefinition night, bool fresh)
+    {
+        if (campaign is null) return;
+        if (fresh) campaign.ForgetCode(night);
+        var screen = new NightScreen(night, campaign.Nights, campaign: campaign);
+        screen.FormClosed += (_, _) =>
         {
-            Options.Difficulty = Options.Difficulty == Night.Difficulty.Vigil ? Night.Difficulty.Night : Night.Difficulty.Vigil;
+            if (!screen.ToMenu)
+            {
+                Close();
+                return;
+            }
+            menu!.Show(CandeiaMenu.Page.Main);
+            Show();
+            Activate();
             Invalidate();
-            return;
-        }
-        if (e.KeyCode != Keys.Enter || next is null || !Visible) return;
-        var screen = next();
-        screen.FormClosed += (_, _) => Close();
+        };
         screen.Show();
         Hide();
     }
 
+    protected override void OnFormClosing(FormClosingEventArgs e)
+    {
+        campaign?.Flush();
+        base.OnFormClosing(e);
+    }
+
     protected override void Dispose(bool disposing)
     {
-        if (disposing) blink.Dispose();
+        if (disposing)
+        {
+            Options.Changed -= repaint;
+            blink.Dispose();
+        }
         base.Dispose(disposing);
     }
 

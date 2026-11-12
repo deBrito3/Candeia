@@ -44,13 +44,34 @@ public sealed class SoundDirector
     IReadOnlyList<LampState> lamps = [];
     bool wasBusy, won;
 
-    readonly double[] channelVolumes;
+    readonly double[] defaultVolumes;
+    double[] channelVolumes;
 
     public SoundDirector(Mixer mixer, SoundBank bank)
     {
         this.mixer = mixer;
         this.bank = bank;
-        channelVolumes = Enum.GetValues<Channel>().Select(mixer.ChannelVolume).ToArray();
+        defaultVolumes = Enum.GetValues<Channel>().Select(mixer.ChannelVolume).ToArray();
+        channelVolumes = [.. defaultVolumes];
+    }
+
+    // The player's volume for each layer, 0 to 1, over the mix's own levels: the house; the system (its
+    // sounds and the keys); him; and the score.
+    public void SetLevels(double house, double system, double creature, double music)
+    {
+        foreach (var channel in Enum.GetValues<Channel>())
+        {
+            double level = channel switch
+            {
+                Channel.House => house,
+                Channel.System or Channel.Interface => system,
+                Channel.Creature => creature,
+                Channel.Music or Channel.Radio => music,
+                _ => 1,
+            };
+            channelVolumes[(int)channel] = defaultVolumes[(int)channel] * Math.Clamp(level, 0, 1);
+            mixer.SetChannel(channel, channelVolumes[(int)channel], 0.2);
+        }
     }
 
     // Soft scares: the capture is quieter and nothing strikes at full volume.

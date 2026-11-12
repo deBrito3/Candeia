@@ -14,12 +14,13 @@ sealed partial class InfoPane : Control
 {
     public enum Tab { Readme, Output, Hints, Notebook, Review }
 
-    static readonly string[] LayerNames = ["A ideia", "Os comandos", "O esqueleto"];
+    static readonly Bilingual[] LayerNames = [new("A ideia", "The idea"), new("Os comandos", "The commands"), new("O esqueleto", "The skeleton")];
 
     SystemStyle style;
     readonly RichTextBox readme = Box(), output = Box(), hints = Box(), notebook = Box(), review = Box();
     IReadOnlyList<Candeia.Challenges.NotebookPage> pages = [];
     Candeia.Challenges.NotebookPage? page;
+    int notebookMarks;
     NightReview? reviewed;
     (bool Available, double Cost) hintPrice = (true, 0);
     IReadOnlyList<OutputLine> lines = [];
@@ -47,12 +48,12 @@ sealed partial class InfoPane : Control
     }
 
     // A double click on a line of the notebook's index: in it, each page is one line after the two of the
-    // heading.
+    // heading. A secret page opens only once the marks reach it.
     public void ChoosePage(int line)
     {
         if (page is not null) return;
         line -= 2;
-        if (line >= 0 && line < pages.Count) PageChosen?.Invoke(pages[line]);
+        if (line >= 0 && line < pages.Count && pages[line].Secret <= notebookMarks) PageChosen?.Invoke(pages[line]);
     }
 
     public Tab Current { get; private set; } = Tab.Readme;
@@ -94,7 +95,7 @@ sealed partial class InfoPane : Control
         ShowReadme(markdown);
         ShowOutput(lines);
         ShowHints(layers, layersShown, hintPrice.Available, hintPrice.Cost);
-        ShowNotebook(pages, page);
+        ShowNotebook(pages, notebookMarks, page);
         ShowReview(reviewed);
     }
 
@@ -128,7 +129,7 @@ sealed partial class InfoPane : Control
         laidOutWidth = area.Width;
         ShowReadme(markdown);
         ShowHints(layers, layersShown, hintPrice.Available, hintPrice.Cost);
-        ShowNotebook(pages, page);
+        ShowNotebook(pages, notebookMarks, page);
     }
 
     int laidOutWidth;
@@ -153,7 +154,7 @@ sealed partial class InfoPane : Control
         int pad = style.Px(10), x = pad, h = HeaderHeight;
         var flags = TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.NoPadding;
         using (var rule = new Pen(SystemStyle.Dim)) g.DrawLine(rule, pad, h, Width - pad, h);
-        foreach (var (tab, name) in new[] { (Tab.Readme, "LEIA-ME"), (Tab.Output, "SAÍDA"), (Tab.Hints, "DICAS"), (Tab.Notebook, "CADERNO"), (Tab.Review, "REVISÃO") })
+        foreach (var (tab, name) in new[] { (Tab.Readme, Options.T("LEIA-ME", "README")), (Tab.Output, Options.T("SAÍDA", "OUTPUT")), (Tab.Hints, Options.T("DICAS", "HINTS")), (Tab.Notebook, Options.T("CADERNO", "NOTEBOOK")), (Tab.Review, Options.T("REVISÃO", "REVIEW")) })
         {
             string text = $" {name} ";
             var size = TextRenderer.MeasureText(text, style.Title);
@@ -164,7 +165,7 @@ sealed partial class InfoPane : Control
             tabs[(int)tab] = box;
             x += size.Width + pad;
         }
-        TextRenderer.DrawText(g, "F5 executar · F1 caderno · Esc pausa", style.Text, new Rectangle(x, 0, Width - x - pad, h), SystemStyle.Dim, flags | TextFormatFlags.Right | TextFormatFlags.EndEllipsis);
+        TextRenderer.DrawText(g, Options.T("F5 executar · F1 caderno · Esc pausa", "F5 run · F1 notebook · Esc pause"), style.Text, new Rectangle(x, 0, Width - x - pad, h), SystemStyle.Dim, flags | TextFormatFlags.Right | TextFormatFlags.EndEllipsis);
     }
 
     protected override void OnMouseDown(MouseEventArgs e)
@@ -226,44 +227,54 @@ sealed partial class InfoPane : Control
         var box = hints;
         box.Clear();
         if (shown == 0)
-            Inline(box, "As dicas abrem uma de cada vez: primeiro a ideia, depois os comandos e, por fim, um esqueleto com lacunas. Cada uma é um doce dele, e doce do Papa-Figo tem preço.\n\nLembrar um conceito não custa nada: o **CADERNO** (Ctrl+4, ou F1 sobre uma palavra do código) é de graça.\n", SystemStyle.Ink);
+            Inline(box, Options.T(
+                "As dicas abrem uma de cada vez: primeiro a ideia, depois os comandos e, por fim, um esqueleto com lacunas. Cada uma é um doce dele, e doce do Papa-Figo tem preço.\n\nLembrar um conceito não custa nada: o **CADERNO** (Ctrl+4, ou F1 sobre uma palavra do código) é de graça.\n",
+                "The hints open one at a time: first the idea, then the commands and, last, a skeleton with blanks. Each one is a sweet of his, and the Papa-Figo's sweets have a price.\n\nRemembering a concept costs nothing: the **NOTEBOOK** (Ctrl+4, or F1 on a word of the code) is free.\n"), SystemStyle.Ink);
         int newest = 0;
         for (int i = 0; i < shown && i < all.Count; i++)
         {
             if (i > 0) Append(box, "\n", style.Text, SystemStyle.Ink);
             newest = box.TextLength;
-            string name = i < LayerNames.Length ? LayerNames[i] : "";
-            Append(box, $"Dica {i + 1} de {all.Count} · {name}\n", style.TextBold, SystemStyle.Bright);
-            Markdown(box, all[i].Pt);
+            string name = i < LayerNames.Length ? Options.Of(LayerNames[i]) : "";
+            Append(box, Options.T($"Dica {i + 1} de {all.Count} · {name}\n", $"Hint {i + 1} of {all.Count} · {name}\n"), style.TextBold, SystemStyle.Bright);
+            Markdown(box, Options.Of(all[i]));
         }
-        string next = !available && shown < all.Count ? "\nNesta noite não há doce.\n"
+        string price = $"−{(int)Math.Round(cost) / 60}:{(int)Math.Round(cost) % 60:00}";
+        string next = !available && shown < all.Count ? Options.T("\nNesta noite não há doce.\n", "\nThere is no sweet tonight.\n")
             : shown >= all.Count ? ""
-            : cost > 0 ? $"\n**Ctrl+3** de novo aceita o doce: a dica {shown + 1} de {all.Count}, por −{(int)Math.Round(cost) / 60}:{(int)Math.Round(cost) % 60:00} e a marca Sem doce.\n"
-            : $"\n**Ctrl+3** de novo abre a dica {shown + 1} de {all.Count}, de graça.\n";
+            : cost > 0 ? Options.T($"\n**Ctrl+3** de novo aceita o doce: a dica {shown + 1} de {all.Count}, por {price} e a marca Sem doce.\n",
+                $"\n**Ctrl+3** again takes the sweet: hint {shown + 1} of {all.Count}, for {price} and the No sweet mark.\n")
+            : Options.T($"\n**Ctrl+3** de novo abre a dica {shown + 1} de {all.Count}, de graça.\n", $"\n**Ctrl+3** again opens hint {shown + 1} of {all.Count}, for free.\n");
         if (next.Length > 0) Inline(box, next, SystemStyle.Warning);
         box.SelectionStart = newest;
         box.ScrollToCaret();
     }
 
-    // The notebook: its index (a double click opens a page), or one page.
-    public void ShowNotebook(IReadOnlyList<Candeia.Challenges.NotebookPage> all, Candeia.Challenges.NotebookPage? open)
+    // The notebook: its index (a double click opens a page), or one page. The secret pages come last; each
+    // shows how many marks open it until the campaign has them.
+    public void ShowNotebook(IReadOnlyList<Candeia.Challenges.NotebookPage> all, int marks, Candeia.Challenges.NotebookPage? open)
     {
         pages = all;
-        page = open;
+        notebookMarks = marks;
+        page = open is not null && open.Secret <= marks ? open : null;
         var box = notebook;
         box.Clear();
-        if (open is null)
+        if (page is null)
         {
-            Append(box, "O caderno\n", style.TextBold, SystemStyle.Bright);
-            Append(box, "Duplo clique numa página para abri-la. F1 sobre uma palavra do código abre a página dela.\n", style.Text, SystemStyle.Dim);
+            Append(box, Options.T("O caderno\n", "The notebook\n"), style.TextBold, SystemStyle.Bright);
+            Append(box, Options.T("Duplo clique numa página para abri-la. F1 sobre uma palavra do código abre a página dela.\n", "Double click a page to open it. F1 on a word of the code opens its page.\n"), style.Text, SystemStyle.Dim);
             foreach (var p in all)
-                Inline(box, $"• {p.Title.Pt}   ({string.Join(" ", p.Keywords.Select(k => $"`{k}`"))})\n", SystemStyle.Ink);
+            {
+                if (p.Secret == 0) Inline(box, $"• {Options.Of(p.Title)}   ({string.Join(" ", p.Keywords.Select(k => $"`{k}`"))})\n", SystemStyle.Ink);
+                else if (p.Secret <= marks) Inline(box, $"✦ {Options.Of(p.Title)}\n", SystemStyle.Bright);
+                else Append(box, Options.T($"✦ Página secreta: abre com {p.Secret} marcas (você tem {marks})\n", $"✦ Secret page: opens with {p.Secret} marks (you have {marks})\n"), style.Text, SystemStyle.Dim);
+            }
         }
         else
         {
-            Append(box, open.Title.Pt + "\n", style.TextBold, SystemStyle.Bright);
-            Markdown(box, open.Text.Pt);
-            Inline(box, "\n**Ctrl+4** volta ao índice do caderno.\n", SystemStyle.Dim);
+            Append(box, Options.Of(page.Title) + "\n", style.TextBold, SystemStyle.Bright);
+            Markdown(box, Options.Of(page.Text));
+            Inline(box, Options.T("\n**Ctrl+4** volta ao índice do caderno.\n", "\n**Ctrl+4** goes back to the notebook's index.\n"), SystemStyle.Dim);
         }
         box.SelectionStart = 0;
         box.ScrollToCaret();
@@ -277,17 +288,18 @@ sealed partial class InfoPane : Control
         box.Clear();
         if (value is null)
         {
-            Append(box, "A revisão aparece quando você vence a noite.\n", style.Text, SystemStyle.Dim);
+            Append(box, Options.T("A revisão aparece quando você vence a noite.\n", "The review appears when you win the night.\n"), style.Text, SystemStyle.Dim);
             return;
         }
         string Mark(bool got, string name) => $"{(got ? "●" : "○")} {name}";
         int left = (int)Math.Round(value.SecondsLeft);
-        Append(box, "Revisão da noite\n", style.TextBold, SystemStyle.Bright);
-        Append(box, $"{Mark(value.Marks.Unharmed, "Ileso")}   {Mark(value.Marks.NoSweet, "Sem doce")}   {Mark(value.Marks.Distance, "Distância")}\n", style.TextBold, SystemStyle.Pass);
-        Append(box, $"Sobraram {left / 60}:{left % 60:00}. Velas perdidas: {value.CandlesLost}. Tentativas: {value.Attempts}. Doces: {value.Sweets}.\n\n", style.Text, SystemStyle.Ink);
-        Append(box, "O que esta noite ensinou\n", style.TextBold, SystemStyle.Bright);
-        Inline(box, value.Learned.Pt + "\n\n", SystemStyle.Ink);
-        Append(box, "O seu código, com quantas vezes cada linha rodou nos testes\n", style.TextBold, SystemStyle.Bright);
+        Append(box, Options.T("Revisão da noite\n", "Review of the night\n"), style.TextBold, SystemStyle.Bright);
+        Append(box, $"{Mark(value.Marks.Unharmed, Options.T("Ileso", "Unharmed"))}   {Mark(value.Marks.NoSweet, Options.T("Sem doce", "No sweet"))}   {Mark(value.Marks.Distance, Options.T("Distância", "Distance"))}\n", style.TextBold, SystemStyle.Pass);
+        Append(box, Options.T($"Sobraram {left / 60}:{left % 60:00}. Velas perdidas: {value.CandlesLost}. Tentativas: {value.Attempts}. Doces: {value.Sweets}.\n\n",
+            $"Time left: {left / 60}:{left % 60:00}. Candles lost: {value.CandlesLost}. Attempts: {value.Attempts}. Sweets: {value.Sweets}.\n\n"), style.Text, SystemStyle.Ink);
+        Append(box, Options.T("O que esta noite ensinou\n", "What this night taught\n"), style.TextBold, SystemStyle.Bright);
+        Inline(box, Options.Of(value.Learned) + "\n\n", SystemStyle.Ink);
+        Append(box, Options.T("O seu código, com quantas vezes cada linha rodou nos testes\n", "Your code, with how many times each line ran in the tests\n"), style.TextBold, SystemStyle.Bright);
         var code = value.Code.Replace("\r\n", "\n").Split('\n');
         var annotated = code.Select((text, i) => (i + 1 < value.Lines.Count && value.Lines[i + 1] > 0 ? $"{value.Lines[i + 1]}×" : "").PadLeft(6) + " │ " + text);
         Code(box, string.Join("\n", annotated));

@@ -2,7 +2,7 @@
 
 Jogo de terror e programação para Windows. Você volta ao casarão da infância, no Recife, e sobrevive às noites escrevendo C# que compila e roda de verdade, enquanto o Papa-Figo se aproxima. Arte vetorial desenhada pelo próprio jogo e sons sintetizados em código, sem assets externos.
 
-**Estado:** entrega 9A de 11. As cinco noites do Ato 1 são jogáveis em sequência, perdendo ou vencendo:
+**Estado:** entrega 9B de 11. O Ato 1 está completo, em português e inglês, com o progresso salvo. São cinco noites:
 
 - 1, A luz do quarto: variáveis e tipos;
 - 2, A bateria do sistema: operações;
@@ -19,7 +19,15 @@ Em cada noite:
 - o doce com preço, o caderno de graça e o CORRIGIR;
 - a revisão depois da vitória.
 
-Ainda sem progresso salvo, menu, opções e a interface em inglês, que vêm na entrega 9B.
+Em volta das noites:
+
+- o menu do CANDEIA: Continuar, a lista de noites com as marcas (dá para rejogar as vencidas), Opções e Sair;
+- a dificuldade escolhida no primeiro jogo: Vigília ou Noite;
+- o progresso salvo: o código de cada noite, as dicas abertas, as vitórias e o melhor resultado;
+- as opções de idioma, fonte, contraste, legendas, sustos suaves e volume por camada;
+- duas páginas secretas do caderno, abertas pelas marcas.
+
+A próxima entrega é a versão de teste: o executável de arquivo único, conferido num Windows limpo.
 
 ## Requisitos
 
@@ -37,9 +45,10 @@ Ainda sem progresso salvo, menu, opções e a interface em inglês, que vêm na 
 ./scripts/security-test.ps1                       # ataca o executor isolado e mostra o que cada camada bloqueou
 ./scripts/content-test.ps1                        # confere cada noite com o código inicial e a solução de referência
 ./scripts/simulate.ps1                            # joga noites roteirizadas pelas regras e mostra a linha do tempo
-./scripts/ui-test.ps1                             # confere o editor, as teclas, o doce, o caderno, o CORRIGIR, a captura e a revisão em janelas de verdade
+./scripts/ui-test.ps1                             # confere o editor, as teclas, o doce, o caderno, o CORRIGIR, a captura, a revisão, a campanha, as opções e o menu em janelas de verdade
 ./scripts/sounds.ps1                              # grava cada som e uma noite de 40 s em WAV, em test-artifacts/som
 ./scripts/night-bench.ps1                          # joga a noite 1 sozinha: imagens de cada momento e medições
+./scripts/dotnet.ps1 run --project src/Candeia.Windows -c Release -- --menu-images test-artifacts/menu   # uma imagem de cada página do menu
 ./scripts/scene.ps1                               # abre o protótipo de desenho (F2 troca a parada, F3 mostra as medições)
 ./scripts/scene-bench.ps1                         # mede o desenho em 1920x1080 por uns 2 minutos e salva o relatório
 ```
@@ -127,7 +136,8 @@ O CANDEIA roda no vidro do monitor: a barra de título com a noite e o sensor de
 | F1 | A página do caderno da palavra sob o cursor, como `return`, `double` ou `%` |
 | Ctrl+5 | REVISÃO, depois da vitória |
 | Duplo clique | Numa linha de erro com `[CORRIGIR]`, aplica a correção (Ctrl+Z desfaz); em outra linha de erro, leva o cursor até ela |
-| Esc | Pausa e continua a noite |
+| Esc | Pausa e continua a noite; na pausa, M volta ao menu do CANDEIA |
+| Ctrl+= e Ctrl+- | Aumenta e diminui a fonte do editor |
 | Enter | Começa a noite, abre a próxima depois da vitória ou recomeça depois da captura |
 | F11 | Tela cheia |
 
@@ -157,7 +167,39 @@ Para contar as linhas, o jogo roda os testes mais uma vez no executor isolado, c
 
 A tela inicial avisa sobre clarões, sustos e sons altos. A tecla S, ali, liga os sustos suaves: sem relâmpago nem fósforo, uma captura que escurece devagar, ele menos aceso, sons mais baixos e os painéis sempre na tela.
 
-A tecla V, também na tela inicial, troca a dificuldade entre Noite e Vigília. Na Vigília há 50% mais tempo, quatro velas e dicas de graça, e a primeira noite começa por uma parte que explica do zero. Na entrega 9B, a escolha passa para o menu.
+## Menu, progresso e opções
+
+Depois da tela inicial vem o menu do CANDEIA. Use ↑ ↓ para escolher, Enter para confirmar e Esc para voltar.
+
+- **Primeiro jogo:** você escolhe a dificuldade. Noite é a do jogo como foi pensado. Na Vigília há 50% mais tempo, quatro velas e dicas de graça, e a primeira noite começa por uma parte que explica do zero.
+- **Continuar:** abre a noite em que você parou.
+- **Noites:** lista as cinco noites, com as marcas e o tempo que sobrou no melhor resultado de cada uma.
+  - Cada noite abre quando a anterior é vencida.
+  - Enter joga a noite com o seu código.
+  - R, duas vezes, recomeça do código original e deixa o seu de lado.
+- **Opções:** ← → muda cada uma, e a mudança vale na hora:
+  - idioma;
+  - dificuldade, a partir da próxima noite;
+  - fonte do editor;
+  - alto contraste no editor;
+  - legendas dos sons;
+  - sustos suaves;
+  - volume da casa, do sistema, dele e da trilha.
+
+O progresso fica em `%LOCALAPPDATA%/Candeia/save.json`. São guardados:
+
+- o código de cada noite, a cada execução e três segundos depois da última edição;
+- as camadas de dica abertas;
+- as noites vencidas e o melhor resultado de cada uma, que nunca piora;
+- as opções.
+
+A gravação é segura, como no Projeto Aurora:
+
+1. o arquivo novo é escrito à parte;
+2. ele substitui o save, e o anterior vira a cópia `save.json.bak`;
+3. se o save estiver danificado, o jogo usa a cópia e avisa na tela inicial.
+
+As marcas Ileso e Sem doce contam todas as tentativas da noite. As marcas somadas abrem as duas páginas secretas do caderno, com 6 e com 12 das 15 marcas do ato. As páginas contam a parte escondida da história. Os modos de teste e de imagens (`--night-images`, `--night-bench`, `--ui-test`, `--menu-images` e `--night`) nunca tocam o save.
 
 ## Som
 

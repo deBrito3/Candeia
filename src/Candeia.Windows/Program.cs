@@ -6,13 +6,14 @@ namespace Candeia;
 static class Program
 {
     // Modes:
-    //   (no arguments)              the CANDEIA boot screen; Enter opens the first night
-    //   --night <id>                opens a night directly, for example --night act1-02-system-battery
+    //   (no arguments)              the CANDEIA boot screen and menu, with the save in %LOCALAPPDATA%/Candeia
+    //   --night <id>                opens a night directly, without the save, for example --night act1-02-system-battery
     //   --runner                    the isolated runner the game starts for the player's code (never by hand)
     //   --shot <file.png>           renders the boot screen to an image and exits (visual review)
     //   --night-images <folder>     plays the moments of night 1 by itself and saves one image of each
     //   --night-bench <report.md>   measures typing, frame rate and processor on the night screen
     //   --ui-test <report.txt>      checks the editor and the night's keys in real windows
+    //   --menu-images <folder>      saves one image of each page of the CANDEIA menu, without the save
     //   --scene                     opens the rendering prototype: the room, the candles, the Papa-Figo
     //   --scene-bench <report.md>   measures the prototype at 1920×1080 and writes the report and images
     //   --scene-images <folder>     saves one image of the prototype per station
@@ -62,8 +63,12 @@ static class Program
                 return NightBench.Run(nights, report, images: false);
             case ["--ui-test", var report]:
                 return UiTests.Run(nights, report);
+            case ["--menu-images", var folder]:
+                return CandeiaMenu.SaveShots(nights, folder);
         }
-        Application.Run(new MainWindow(() => new NightScreen(nights[0], nights)));
+        var (campaign, problem) = Progress.Campaign.Load(nights, new Progress.SaveStore(Progress.SaveStore.DefaultFolder));
+        Options.Use(campaign);
+        Application.Run(new MainWindow(campaign, problem));
         return 0;
     }
 

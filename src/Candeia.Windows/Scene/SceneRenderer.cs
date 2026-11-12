@@ -385,7 +385,7 @@ sealed class SceneRenderer : IDisposable
             var caption = captions[i];
             double left = caption.Until - now;
             int alpha = (int)(255 * Math.Clamp(left / 0.5, 0, 1));
-            string text = caption.Text(english: false);
+            string text = caption.Text(english: Options.English);
             var size = g.MeasureString(text, font);
             y -= size.Height + 6 * Layout.Scale;
             var box = new RectangleF(centre - size.Width / 2 - 10 * Layout.Scale, y - 3 * Layout.Scale, size.Width + 20 * Layout.Scale, size.Height + 6 * Layout.Scale);

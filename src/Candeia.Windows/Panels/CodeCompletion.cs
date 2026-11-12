@@ -23,19 +23,28 @@ sealed class CodeCompletion : IDisposable
 
     static readonly Color Back = Color.FromArgb(24, 18, 10), Chosen = Color.FromArgb(58, 40, 16), Ink = Color.FromArgb(232, 162, 72), Bright = Color.FromArgb(255, 224, 156), Note = Color.FromArgb(150, 108, 52);
 
-    // The words of the language and of the house system, with what each one does.
-    static readonly (string Word, string Pt)[] Vocabulary =
+    // The words of the language and of the house system, with what each one does, in each language.
+    static readonly (string Word, string Pt, string En)[] Vocabulary =
     [
-        ("int", "número inteiro"), ("double", "número com casas decimais"), ("bool", "verdadeiro ou falso"), ("string", "texto entre aspas"),
-        ("char", "um caractere entre aspas simples"), ("long", "número inteiro grande"), ("var", "o tipo vem do valor"), ("void", "o método não devolve nada"),
-        ("true", "verdadeiro"), ("false", "falso"), ("return", "devolve o resultado do método"), ("if", "executa só quando a condição é verdadeira"),
-        ("else", "senão"), ("while", "repete enquanto for verdade"), ("for", "repete contando"), ("foreach", "percorre cada item"),
-        ("switch", "escolhe entre casos"), ("case", "um caso do switch"), ("break", "sai da repetição ou do caso"), ("continue", "pula para a próxima volta"),
-        ("public", "visível para o sistema da casa"), ("static", "pertence à classe, sem objeto"), ("class", "declara uma classe"), ("new", "cria um objeto"),
-        ("null", "nada"),
-        ("Math.Abs", "valor sem o sinal"), ("Math.Max", "o maior de dois valores"), ("Math.Min", "o menor de dois valores"), ("Math.Round", "arredonda"),
-        ("Math.Floor", "arredonda para baixo"), ("Math.Ceiling", "arredonda para cima"), ("Math.Sqrt", "raiz quadrada"), ("Math.Pow", "potência"),
-        ("Math.PI", "o número pi"), ("Console.WriteLine", "escreve na SAÍDA e pula a linha"), ("Console.Write", "escreve na SAÍDA"),
+        ("int", "número inteiro", "whole number"), ("double", "número com casas decimais", "number with decimals"),
+        ("bool", "verdadeiro ou falso", "true or false"), ("string", "texto entre aspas", "text in quotes"),
+        ("char", "um caractere entre aspas simples", "one character in single quotes"), ("long", "número inteiro grande", "big whole number"),
+        ("var", "o tipo vem do valor", "the type comes from the value"), ("void", "o método não devolve nada", "the method returns nothing"),
+        ("true", "verdadeiro", "true"), ("false", "falso", "false"),
+        ("return", "devolve o resultado do método", "hands back the method's result"), ("if", "executa só quando a condição é verdadeira", "runs only when the condition is true"),
+        ("else", "senão", "otherwise"), ("while", "repete enquanto for verdade", "repeats while it is true"),
+        ("for", "repete contando", "repeats, counting"), ("foreach", "percorre cada item", "goes through each item"),
+        ("switch", "escolhe entre casos", "chooses between cases"), ("case", "um caso do switch", "a case of the switch"),
+        ("break", "sai da repetição ou do caso", "leaves the loop or the case"), ("continue", "pula para a próxima volta", "skips to the next round"),
+        ("public", "visível para o sistema da casa", "visible to the house system"), ("static", "pertence à classe, sem objeto", "belongs to the class, no object"),
+        ("class", "declara uma classe", "declares a class"), ("new", "cria um objeto", "creates an object"),
+        ("null", "nada", "nothing"),
+        ("Math.Abs", "valor sem o sinal", "value without its sign"), ("Math.Max", "o maior de dois valores", "the larger of two values"),
+        ("Math.Min", "o menor de dois valores", "the smaller of two values"), ("Math.Round", "arredonda", "rounds"),
+        ("Math.Floor", "arredonda para baixo", "rounds down"), ("Math.Ceiling", "arredonda para cima", "rounds up"),
+        ("Math.Sqrt", "raiz quadrada", "square root"), ("Math.Pow", "potência", "power"),
+        ("Math.PI", "o número pi", "the number pi"), ("Console.WriteLine", "escreve na SAÍDA e pula a linha", "writes to the OUTPUT and ends the line"),
+        ("Console.Write", "escreve na SAÍDA", "writes to the OUTPUT"),
     ];
 
     readonly Form owner;
@@ -81,7 +90,7 @@ sealed class CodeCompletion : IDisposable
                 Note, TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine | TextFormatFlags.NoPadding);
     }
 
-    public static string? Describe(string word) => Vocabulary.FirstOrDefault(v => v.Word == word).Pt;
+    public static string? Describe(string word) => Vocabulary.FirstOrDefault(v => v.Word == word) is { Word: not null } v ? Options.T(v.Pt, v.En) : null;
 
     // The word being typed before the caret (letters, digits, _ and dots), when it is worth completing.
     public static string Prefix(string text, int caret, out int start)

@@ -35,7 +35,7 @@ sealed class LampStrip : Control
         g.SmoothingMode = SmoothingMode.AntiAlias;
         int pad = style.Px(10);
         var flags = TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.NoPadding;
-        string label = "LÂMPADAS";
+        string label = Options.T("LÂMPADAS", "LAMPS");
         var labelSize = TextRenderer.MeasureText(label, style.Text);
         TextRenderer.DrawText(g, label, style.Text, new Rectangle(pad, 0, labelSize.Width, Height), SystemStyle.Dim, flags);
         float d = Height * 0.52f, gap = d * 0.85f, x = pad + labelSize.Width + pad * 1.5f, y = (Height - d) / 2;
@@ -70,6 +70,6 @@ sealed class LampStrip : Control
             x += d + gap;
         }
         int on = lamps.Count(l => l == LampState.Lit);
-        TextRenderer.DrawText(g, $"{on} de {lamps.Count}", style.Text, new Rectangle(pad, 0, Width - pad * 2, Height), SystemStyle.Ink, flags | TextFormatFlags.Right);
+        TextRenderer.DrawText(g, Options.T($"{on} de {lamps.Count}", $"{on} of {lamps.Count}"), style.Text, new Rectangle(pad, 0, Width - pad * 2, Height), SystemStyle.Ink, flags | TextFormatFlags.Right);
     }
 }

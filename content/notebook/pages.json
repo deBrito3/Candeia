@@ -1,5 +1,6 @@
 // The notebook's pages, in the order of its index. Keywords are the words of the code that open a page
-// with F1 (one page per keyword). Each page is <id>.pt.md and <id>.en.md.
+// with F1 (one page per keyword). Each page is <id>.pt.md and <id>.en.md. A secret page has no keywords:
+// it opens once the campaign's marks reach "secret".
 {
   "pages": [
     {
@@ -120,6 +121,16 @@
       "keywords": [
         "else"
       ]
+    },
+    {
+      "id": "secret-first-night",
+      "act": 1,
+      "secret": 6
+    },
+    {
+      "id": "secret-sweet",
+      "act": 1,
+      "secret": 12
     }
   ]
 }

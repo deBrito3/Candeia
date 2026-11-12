@@ -30,7 +30,7 @@ static class BootScreen
         float cx = size.Width / 2f, cy = size.Height / 2f;
         g.DrawString(GameInfo.SystemName, title, amber, cx - titleSize.Width / 2f, cy - titleSize.Height * 0.75f);
 
-        string subtitle = $"sistema da casa · versão {GameInfo.Version}";
+        string subtitle = Options.T($"sistema da casa · versão {GameInfo.Version}", $"house system · version {GameInfo.Version}");
         var subtitleSize = g.MeasureString(subtitle, small);
         g.DrawString(subtitle, small, dim, cx - subtitleSize.Width / 2f, cy + titleSize.Height * 0.3f);
 
@@ -42,22 +42,21 @@ static class BootScreen
         g.DrawString(prompt, small, amber, px, py);
         if (CursorVisible(elapsed))
             g.FillRectangle(amber, px + promptSize.Width, py + subtitleSize.Height * 0.15f, unit * 1.0f, subtitleSize.Height * 0.75f);
-        string hint = "Enter liga a casa";
+        string hint = Options.T("Enter liga a casa", "Enter turns the house on");
         var hintSize = g.MeasureString(hint, small);
         g.DrawString(hint, small, dim, cx - hintSize.Width / 2f, py + subtitleSize.Height * 2.2f);
 
         // The photosensitivity warning, and the soft scares.
         string[] warning =
         [
-            "Aviso: este jogo tem clarões de relâmpago, sustos e sons altos de repente.",
-            $"S liga os sustos suaves, sem clarões: {(Options.SoftScares ? "LIGADOS" : "desligados")}.",
-            $"V troca a dificuldade: {(Options.Difficulty == Night.Difficulty.Vigil ? "VIGÍLIA, para quem nunca programou" : "NOITE")}.",
+            Options.T("Aviso: este jogo tem clarões de relâmpago, sustos e sons altos de repente.", "Warning: this game has lightning flashes, scares and sudden loud sounds."),
+            Options.T($"S liga os sustos suaves, sem clarões: {(Options.SoftScares ? "LIGADOS" : "desligados")}.", $"S turns on soft scares, without flashes: {(Options.SoftScares ? "ON" : "off")}."),
         ];
         float wy = size.Height - unit * 9;
         foreach (var line in warning)
         {
             var lineSize = g.MeasureString(line, small);
-            g.DrawString(line, small, line.StartsWith('S') || line.StartsWith('V') ? amber : dim, cx - lineSize.Width / 2f, wy);
+            g.DrawString(line, small, line.StartsWith('S') ? amber : dim, cx - lineSize.Width / 2f, wy);
             wy += lineSize.Height * 1.2f;
         }
     }

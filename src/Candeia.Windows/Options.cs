@@ -1,14 +1,38 @@
+using Candeia.Challenges;
+using Candeia.Night;
+using Candeia.Progress;
+
 namespace Candeia;
 
-// The player's choices for this session. They are chosen on the boot screen and kept until the game
-// closes; saving them between sessions comes with the save file.
+// The player's settings for the running game. They live in the campaign's save; every screen reads them
+// here and hears when they change.
 static class Options
 {
-    // Soft scares: no flashes (lightning, the match), a quieter capture that fades instead of striking,
-    // and the system panels never leave the screen.
-    public static bool SoftScares { get; set; }
+    static Campaign? campaign;
 
-    // The difficulty of the nights opened from now on: Night, or Vigil for people who never programmed.
-    // The campaign's menu chooses it in delivery 9B; for now, V on the boot screen switches it.
-    public static Night.Difficulty Difficulty { get; set; } = Night.Difficulty.Night;
+    public static Settings Settings { get; private set; } = new();
+    public static event Action? Changed;
+
+    public static bool SoftScares => Settings.SoftScares;
+    public static Difficulty Difficulty => Settings.Difficulty;
+    public static bool English => Settings.English;
+
+    // The campaign whose save keeps the settings from now on.
+    public static void Use(Campaign value)
+    {
+        campaign = value;
+        Settings = value.Settings;
+        Changed?.Invoke();
+    }
+
+    public static void Change(Settings value)
+    {
+        Settings = value.Checked();
+        campaign?.ChangeSettings(Settings);
+        Changed?.Invoke();
+    }
+
+    // The interface's words in the player's language.
+    public static string T(string pt, string en) => Settings.English ? en : pt;
+    public static string Of(Bilingual text) => Settings.English ? text.En : text.Pt;
 }

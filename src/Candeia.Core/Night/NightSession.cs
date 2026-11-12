@@ -37,7 +37,6 @@ public sealed class NightSession
     readonly CSharpRuntime runtime;
     readonly Func<RunRequest, RunResult> run;
     readonly Difficulty difficulty;
-    readonly bool english;
     readonly CheckOptions options;
     readonly List<ClockEvent> queued = [];
     readonly List<OutputLine> output = [];
@@ -56,7 +55,7 @@ public sealed class NightSession
         this.runtime = runtime;
         this.run = run;
         this.difficulty = difficulty;
-        this.english = english;
+        English = english;
         options = new CheckOptions(AllowLinq: night.Act >= 3);
         Penalties = new PenaltyRules(rules, night.Act, difficulty, siege: night.Type == "siege");
         Clock = new NightClock(Penalties, night.Tests.Count);
@@ -96,6 +95,14 @@ public sealed class NightSession
     public bool HintAvailable => Penalties.SweetAvailable && HintsShown < Night.Hints.Count && Clock.State is not (ClockState.Won or ClockState.Captured);
     public double HintCost => Penalties.SweetCost;
 
+    // The hint layers this night had open when the player left it, opened again without cost: they were paid
+    // for then, or came free after a capture. Only before the night begins.
+    public void RestoreHints(int shown)
+    {
+        if (Clock.State != ClockState.Intro || Attempt > 1) return;
+        HintsShown = Math.Clamp(shown, 0, Night.Hints.Count);
+    }
+
     // Takes a sweet: the next layer opens and the clock pays for it. False when there is nothing to give.
     public bool ShowHint()
     {
@@ -119,7 +126,13 @@ public sealed class NightSession
     // How lit the house is, 0 to 1: the share of lamps lit right now.
     public double HouseLight => lamps.Length == 0 ? 0 : lamps.Count(l => l == LampState.Lit) / (double)lamps.Length;
 
-    string T(string pt, string en) => english ? en : pt;
+    // What the win tells the player to do next: the next night, or, after the act's last, the menu.
+    public Bilingual AfterWin { get; set; } = new("Enter: a próxima noite.", "Enter: the next night.");
+
+    // The language of the lines written from now on (the player may switch it in the middle of a night).
+    public bool English { get; set; }
+
+    string T(string pt, string en) => English ? en : pt;
 
     // The player closed the LEIA-ME or started typing: the night begins.
     public void Start()
@@ -194,7 +207,7 @@ public sealed class NightSession
         {
             events.AddRange(Clock.Listened());
             var lines = new List<OutputLine> { new(OutputKind.Heading, T("O código não compilou. Ele escuta.", "The code did not compile. He listens.")) };
-            lines.AddRange(result.Errors.Select(e => new OutputLine(OutputKind.Error, e.Format(english) + (e.Fix is null ? "" : T("  [CORRIGIR: duplo clique]", "  [FIX: double click]")), e.Line, e.Fix?.Text)));
+            lines.AddRange(result.Errors.Select(e => new OutputLine(OutputKind.Error, e.Format(English) + (e.Fix is null ? "" : T("  [CORRIGIR: duplo clique]", "  [FIX: double click]")), e.Line, e.Fix?.Text)));
             ErrorLine = result.Errors.Count > 0 ? result.Errors[0].Line : null;
             Say(lines);
             return;
@@ -329,7 +342,7 @@ public sealed class NightSession
                     lines.Add(new(OutputKind.Warning, e.Count == 1 ? T("Uma lâmpada apagou de novo.", "A lamp went out again.") : T($"{e.Count} lâmpadas apagaram de novo.", $"{e.Count} lamps went out again.")));
                     break;
                 case ClockEventKind.ConceptsMissing:
-                    string needs = string.Join(T(" e ", " and "), (e.Detail ?? "").Split(',').Select(c => Concepts.Describe(c).For(english)));
+                    string needs = string.Join(T(" e ", " and "), (e.Detail ?? "").Split(',').Select(c => Concepts.Describe(c).For(English)));
                     lines.Add(new(OutputKind.Warning, T($"A casa acendeu, mas o LEIA-ME ainda pede {needs}.", $"The house is lit, but the README still asks for {needs}.")));
                     break;
                 case ClockEventKind.Won:
@@ -337,7 +350,7 @@ public sealed class NightSession
                     string Mark(bool got, string pt, string en) => $"{(got ? "●" : "○")} {T(pt, en)}";
                     lines.Add(new(OutputKind.Win, T("NOITE VENCIDA. A casa acendeu, e ele foi embora.", "NIGHT WON. The house is lit, and he went away.")));
                     lines.Add(new(OutputKind.Win, $"{Mark(marks.Unharmed, "Ileso", "Unharmed")}   {Mark(marks.NoSweet, "Sem doce", "No sweet")}   {Mark(marks.Distance, "Distância", "Distance")}"));
-                    lines.Add(new(OutputKind.Plain, T("Enter: a próxima noite.", "Enter: the next night.")));
+                    lines.Add(new(OutputKind.Plain, T(AfterWin.Pt, AfterWin.En)));
                     break;
                 case ClockEventKind.NearCapture:
                     lines.Add(new(OutputKind.Warning, e.Count == 1
@@ -376,6 +389,9 @@ public sealed class NightSession
         output.AddRange(lines);
         OutputVersion++;
     }
+
+    // A line the screen adds to the output: the campaign's news (a best result, a page of the notebook).
+    public void Note(OutputKind kind, string pt, string en) => Add([new OutputLine(kind, T(pt, en))]);
 
     // Adds to the output of the current run.
     void Add(List<OutputLine> lines)

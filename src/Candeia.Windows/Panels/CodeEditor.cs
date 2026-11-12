@@ -11,9 +11,15 @@ namespace Candeia.Panels;
 // that follows braces, and the typing probe the measurements use.
 sealed class CodeEditor : RichTextBox
 {
-    public static readonly Color Back = Palette.ScreenGlass;
-    public static readonly Color NameColor = Color.FromArgb(232, 162, 72), KeywordColor = Color.FromArgb(255, 224, 156), TypeColor = Color.FromArgb(255, 198, 108);
-    public static readonly Color TextColor = Color.FromArgb(214, 196, 122), NumberColor = Color.FromArgb(255, 186, 120), CommentColor = Color.FromArgb(138, 98, 48);
+    // The amber of the old monitor, or, with high contrast, white and strong colours on black.
+    public static bool HighContrast { get; set; }
+    public static Color Back => HighContrast ? Color.Black : Palette.ScreenGlass;
+    public static Color NameColor => HighContrast ? Color.FromArgb(245, 245, 245) : Color.FromArgb(232, 162, 72);
+    public static Color KeywordColor => HighContrast ? Color.FromArgb(255, 214, 10) : Color.FromArgb(255, 224, 156);
+    public static Color TypeColor => HighContrast ? Color.FromArgb(110, 215, 255) : Color.FromArgb(255, 198, 108);
+    public static Color TextColor => HighContrast ? Color.FromArgb(150, 255, 150) : Color.FromArgb(214, 196, 122);
+    public static Color NumberColor => HighContrast ? Color.FromArgb(255, 165, 200) : Color.FromArgb(255, 186, 120);
+    public static Color CommentColor => HighContrast ? Color.FromArgb(185, 185, 185) : Color.FromArgb(138, 98, 48);
     public static readonly Color ErrorColor = Color.FromArgb(232, 84, 84);
     public const int Indent = 4;
 
@@ -85,6 +91,15 @@ sealed class CodeEditor : RichTextBox
     protected override void OnSelectionChanged(EventArgs e)
     {
         if (!formatting) base.OnSelectionChanged(e);
+    }
+
+    // The colours changed (high contrast on or off): the background and every token again.
+    public void Recolour()
+    {
+        BackColor = Back;
+        ForeColor = NameColor;
+        dirtyAll = true;
+        Highlight();
     }
 
     // Puts the code in the editor as the player's starting point: no undo back to empty.

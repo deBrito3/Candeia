@@ -23,6 +23,7 @@ if (args.Length == 0 || args.Contains("--self-test"))
     runner.Suite("Instrumentation", InstrumentationTests.Run);
     runner.Suite("Night format", NightLoaderTests.Run);
     runner.Suite("Notebook", NotebookTests.Run);
+    runner.Suite("Progress", ProgressTests.Run);
     runner.Suite("Night rules", NightRulesTests.Run);
     runner.Suite("Editor tokens", TokenizerTests.Run);
     runner.Suite("Audio", AudioTests.Run);

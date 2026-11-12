@@ -164,6 +164,17 @@ static class AudioTests
         director.End();
         t.Check(Math.Abs(mixer.ChannelVolume(Channel.House) - house) < 1e-9, "closing the night during a silence ends the silence");
 
+        // The player's volumes scale each layer, and a silence comes back to them.
+        var levels = new Mixer();
+        var leveled = new SoundDirector(levels, bank);
+        double houseBase = levels.ChannelVolume(Channel.House), systemBase = levels.ChannelVolume(Channel.System), keysBase = levels.ChannelVolume(Channel.Interface);
+        leveled.SetLevels(0.5, 0.2, 0, 1);
+        t.Check(Math.Abs(levels.ChannelVolume(Channel.House) - houseBase * 0.5) < 1e-9 && Math.Abs(levels.ChannelVolume(Channel.System) - systemBase * 0.2) < 1e-9
+            && Math.Abs(levels.ChannelVolume(Channel.Interface) - keysBase * 0.2) < 1e-9 && levels.ChannelVolume(Channel.Creature) == 0, "the player's volumes scale the house, the system with its keys, and him");
+        leveled.Hush(0, 1);
+        leveled.Update(1.5, Tick(), street, lamps, false);
+        t.Check(Math.Abs(levels.ChannelVolume(Channel.House) - houseBase * 0.5) < 1e-9, "after a silence, the house comes back to the player's volume");
+
         // Soft scares: the sting and the sack are quieter.
         var softMixer = new Mixer();
         var soft = new SoundDirector(softMixer, bank) { Soft = true };
