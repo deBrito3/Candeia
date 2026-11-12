@@ -13,7 +13,7 @@ static class ProgressTests
         // Settings put right what a hand-edited save may get wrong.
         var odd = new Settings { Language = "fr", Difficulty = Difficulty.Nightmare, FontStep = 9, MusicVolume = 3, HouseVolume = double.NaN }.Checked();
         t.Check(odd is { Language: "pt", Difficulty: Difficulty.Night, FontStep: 4, MusicVolume: 1, HouseVolume: 1 }, "settings out of range are put right");
-        t.Check(new Settings().FontScale == 1 && new Settings { FontStep = 0 }.FontScale < 1 && new Settings { Language = "en" }.English, "the font scale and the language");
+        t.Check(new Settings().FontScale == 1 && new Settings { FontStep = 0 }.FontScale < 1 && new Settings { Language = "en" }.English && new Settings().BatterySaver, "the font scale, the language, and the battery saver on by default");
 
         string folder = Path.Combine(Path.GetTempPath(), "candeia-save-test-" + Guid.NewGuid().ToString("N")[..8]);
         try

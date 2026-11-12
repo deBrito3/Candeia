@@ -12,6 +12,7 @@ static class Program
     //   --shot <file.png>           renders the boot screen to an image and exits (visual review)
     //   --night-images <folder>     plays the moments of night 1 by itself and saves one image of each
     //   --night-bench <report.md>   measures typing, frame rate and processor on the night screen
+    //                [--fps 30]     holding a frame rate, whatever the power
     //   --ui-test <report.txt>      checks the editor and the night's keys in real windows
     //   --menu-images <folder>      saves one image of each page of the CANDEIA menu, without the save
     //   --scene                     opens the rendering prototype: the room, the candles, the Papa-Figo
@@ -55,10 +56,13 @@ static class Program
                     MessageBox.Show($"Noite não encontrada: {id}", GameInfo.Name);
                     return 2;
                 }
+                CrashReport.Install();
                 Application.Run(new NightScreen(night, nights));
                 return 0;
             case ["--night-images", var folder]:
                 return NightBench.Run(nights, folder, images: true);
+            case ["--night-bench", var report, "--fps", var fps] when double.TryParse(fps, System.Globalization.CultureInfo.InvariantCulture, out double held):
+                return NightBench.Run(nights, report, images: false, held);
             case ["--night-bench", var report]:
                 return NightBench.Run(nights, report, images: false);
             case ["--ui-test", var report]:
@@ -66,8 +70,17 @@ static class Program
             case ["--menu-images", var folder]:
                 return CandeiaMenu.SaveShots(nights, folder);
         }
+        // Arguments the game does not know never open it with the real save: a mistyped test command
+        // fails instead of starting a campaign.
+        if (args.Length > 0)
+        {
+            Console.Error.WriteLine($"Unknown arguments: {string.Join(" ", args)}");
+            return 2;
+        }
         var (campaign, problem) = Progress.Campaign.Load(nights, new Progress.SaveStore(Progress.SaveStore.DefaultFolder));
         Options.Use(campaign);
+        CrashReport.Campaign = campaign;
+        CrashReport.Install();
         Application.Run(new MainWindow(campaign, problem));
         return 0;
     }

@@ -18,14 +18,21 @@ readonly record struct LayerCosts(double Copy, double Figures, double LightMap, 
 
 readonly record struct FrameSummary(int Frames, double Fps, Spread Work, Spread Interval, LayerCosts Layers);
 
-// Collects what each frame cost on the window's thread, and the time between frames.
+// Collects what each frame cost to draw, and the time between frames. The scene's thread adds; the
+// measurements read; a lock keeps them apart.
 sealed class FrameStats
 {
+    readonly object gate = new();
     readonly List<double> work = [], interval = [];
     double copy, figures, lightMap, light, flames, present;
     double lastAt = -1;
 
     public void Add(SceneTimings t, double at)
+    {
+        lock (gate) AddLocked(t, at);
+    }
+
+    void AddLocked(SceneTimings t, double at)
     {
         work.Add(t.Render + t.Present);
         if (lastAt >= 0) interval.Add((at - lastAt) * 1000);
@@ -40,6 +47,11 @@ sealed class FrameStats
 
     public void Reset()
     {
+        lock (gate) ResetLocked();
+    }
+
+    void ResetLocked()
+    {
         work.Clear();
         interval.Clear();
         copy = figures = lightMap = light = flames = present = 0;
@@ -47,6 +59,11 @@ sealed class FrameStats
     }
 
     public FrameSummary Summarize(double seconds)
+    {
+        lock (gate) return SummarizeLocked(seconds);
+    }
+
+    FrameSummary SummarizeLocked(double seconds)
     {
         int n = Math.Max(1, work.Count);
         return new(work.Count, work.Count / seconds, Spread.Of(work), Spread.Of(interval),

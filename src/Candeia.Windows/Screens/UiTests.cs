@@ -3,6 +3,7 @@ using System.Text;
 using Candeia.Challenges;
 using Candeia.Night;
 using Candeia.Panels;
+using Candeia.Scene;
 
 namespace Candeia.Screens;
 
@@ -263,6 +264,42 @@ static class UiTests
         await Campaign(screen, check);
         await Settings(screen, check);
         Menu(check);
+        await Faults(check);
+    }
+
+    // A fault in the scene's thread is caught and handed to the window's thread; the crash report says what
+    // a tester can send back, and never the player's code.
+    static async Task Faults(Action<bool, string> check)
+    {
+        var size = new Size(1280, 720);
+        using (var worker = new SceneWorker(size, IntPtr.Zero, new FrameStats()))
+        {
+            var state = new SceneState(0, Station.Street, 0, SceneQuality.High);
+            worker.Submit(state, [], size);
+            var watch = Stopwatch.StartNew();
+            while (worker.Drawn == 0 && watch.Elapsed.TotalSeconds < 5) await Task.Delay(20);
+            check(worker.Drawn > 0 && worker.Failure is null, "the scene's thread draws the frames it is handed");
+            worker.FailNextFrame();
+            worker.Submit(state, [], size);
+            watch.Restart();
+            while (worker.Failure is null && watch.Elapsed.TotalSeconds < 5) await Task.Delay(20);
+            check(worker.Failure is InvalidOperationException, "a fault in the scene's thread is kept for the window's thread to report");
+        }
+        string folder = Path.Combine(Path.GetTempPath(), "candeia-crash-test-" + Guid.NewGuid().ToString("N")[..8]);
+        try
+        {
+            Exception error;
+            try { throw new InvalidOperationException("A test fault."); }
+            catch (InvalidOperationException ex) { error = ex; }
+            string path = CrashReport.Write(error, folder, new DateTime(2026, 11, 12, 21, 5, 9));
+            string text = File.ReadAllText(path);
+            check(Path.GetFileName(path) == "erro-20261112-210509.txt" && text.StartsWith($"{GameInfo.Name} {GameInfo.Version}", StringComparison.Ordinal)
+                && text.Contains("A test fault.") && text.Contains(nameof(Faults)) && text.Contains("Windows: "), "the crash report has the version, the Windows, the error and where it happened");
+        }
+        finally
+        {
+            try { Directory.Delete(folder, recursive: true); } catch (IOException) { }
+        }
     }
 
     // The campaign behind the screen: the code kept at each run and after edits, the hint layers, the win
@@ -359,7 +396,7 @@ static class UiTests
         menu.Key(Keys.Down);
         menu.Key(Keys.Down);
         menu.Key(Keys.Enter);
-        check(menu.Current == CandeiaMenu.Page.Options && menu.Lines().Count == 10, "the options have their ten rows");
+        check(menu.Current == CandeiaMenu.Page.Options && menu.Lines().Count == 11, "the options have their eleven rows");
         menu.Key(Keys.Right);
         check(Options.Settings.English && menu.Lines()[0] == "Language: English" && campaign.Settings.English, "the language changes at once, and the campaign keeps it");
         menu.Key(Keys.Down);
@@ -374,6 +411,9 @@ static class UiTests
         menu.Key(Keys.Up);
         menu.Key(Keys.Right);
         check(Options.Settings.SoftScares, "soft scares from the options");
+        for (int i = 0; i < 5; i++) menu.Key(Keys.Down);
+        menu.Key(Keys.Enter);
+        check(!Options.Settings.BatterySaver && menu.Lines()[10].EndsWith("no", StringComparison.Ordinal), "the battery saver can be turned off");
         Options.Change(new Progress.Settings());
         menu.Key(Keys.Escape);
         check(menu.Current == CandeiaMenu.Page.Main, "Esc goes back to the menu");

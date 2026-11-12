@@ -2,7 +2,7 @@
 
 Jogo de terror e programação para Windows. Você volta ao casarão da infância, no Recife, e sobrevive às noites escrevendo C# que compila e roda de verdade, enquanto o Papa-Figo se aproxima. Arte vetorial desenhada pelo próprio jogo e sons sintetizados em código, sem assets externos.
 
-**Estado:** entrega 9B de 11. O Ato 1 está completo, em português e inglês, com o progresso salvo. São cinco noites:
+**Estado:** entrega 10A de 11. O Ato 1 está completo, em português e inglês, com o progresso salvo, e a cena é desenhada numa thread própria. São cinco noites:
 
 - 1, A luz do quarto: variáveis e tipos;
 - 2, A bateria do sistema: operações;
@@ -27,7 +27,7 @@ Em volta das noites:
 - as opções de idioma, fonte, contraste, legendas, sustos suaves e volume por camada;
 - duas páginas secretas do caderno, abertas pelas marcas.
 
-A próxima entrega é a versão de teste: o executável de arquivo único, conferido num Windows limpo.
+A próxima entrega é a 10B, a versão de teste: o executável de arquivo único num zip com as noites, as licenças e o guia para quem vai testar.
 
 ## Requisitos
 
@@ -48,6 +48,7 @@ A próxima entrega é a versão de teste: o executável de arquivo único, confe
 ./scripts/ui-test.ps1                             # confere o editor, as teclas, o doce, o caderno, o CORRIGIR, a captura, a revisão, a campanha, as opções e o menu em janelas de verdade
 ./scripts/sounds.ps1                              # grava cada som e uma noite de 40 s em WAV, em test-artifacts/som
 ./scripts/night-bench.ps1                          # joga a noite 1 sozinha: imagens de cada momento e medições
+./scripts/dotnet.ps1 run --project src/Candeia.Windows -c Release -- --night-bench test-artifacts/medicao-30.md --fps 30   # mede segurando 30 quadros por segundo
 ./scripts/dotnet.ps1 run --project src/Candeia.Windows -c Release -- --menu-images test-artifacts/menu   # uma imagem de cada página do menu
 ./scripts/scene.ps1                               # abre o protótipo de desenho (F2 troca a parada, F3 mostra as medições)
 ./scripts/scene-bench.ps1                         # mede o desenho em 1920x1080 por uns 2 minutos e salva o relatório
@@ -184,7 +185,8 @@ Depois da tela inicial vem o menu do CANDEIA. Use ↑ ↓ para escolher, Enter p
   - alto contraste no editor;
   - legendas dos sons;
   - sustos suaves;
-  - volume da casa, do sistema, dele e da trilha.
+  - volume da casa, do sistema, dele e da trilha;
+  - na bateria, 30 quadros por segundo em vez de 60 (ligado de início): metade do trabalho do processador.
 
 O progresso fica em `%LOCALAPPDATA%/Candeia/save.json`. São guardados:
 
@@ -199,7 +201,15 @@ A gravação é segura, como no Projeto Aurora:
 2. ele substitui o save, e o anterior vira a cópia `save.json.bak`;
 3. se o save estiver danificado, o jogo usa a cópia e avisa na tela inicial.
 
-As marcas Ileso e Sem doce contam todas as tentativas da noite. As marcas somadas abrem as duas páginas secretas do caderno, com 6 e com 12 das 15 marcas do ato. As páginas contam a parte escondida da história. Os modos de teste e de imagens (`--night-images`, `--night-bench`, `--ui-test`, `--menu-images` e `--night`) nunca tocam o save.
+As marcas Ileso e Sem doce contam todas as tentativas da noite. As marcas somadas abrem as duas páginas secretas do caderno, com 6 e com 12 das 15 marcas do ato. As páginas contam a parte escondida da história. Os modos de teste e de imagens (`--night-images`, `--night-bench`, `--ui-test`, `--menu-images` e `--night`) nunca tocam o save. Um argumento que o jogo não conhece faz o jogo sair com erro, em vez de abrir a campanha.
+
+Se o jogo quebrar, ele faz três coisas em vez de fechar calado:
+
+1. salva o código da noite e o progresso;
+2. grava um relatório em `%LOCALAPPDATA%/Candeia/erros/`, com a versão, o Windows e o erro;
+3. avisa o jogador.
+
+O relatório nunca leva o código do jogador. Um erro na thread da cena chega à janela e segue o mesmo caminho.
 
 ## Som
 
@@ -232,6 +242,15 @@ A cena é desenhada pelo próprio jogo, com GDI+, sem imagens. A cada quadro:
 5. o que emite luz: as chamas, os halos, a luz do monitor e os olhos vermelhos dele; nos sustos, o fósforo, o escuro e o saco por cima de tudo.
 
 O editor é um controle de texto por cima do monitor. A cena nunca desenha sobre o código.
+
+Na tela da noite, a cena é desenhada numa thread própria (`SceneWorker`):
+
+- a cada quadro, a thread da janela avança a noite e entrega o estado da cena;
+- a thread da cena desenha e põe o quadro na tela;
+- a thread da janela fica livre para o teclado e o editor;
+- redimensionar e repintar usam a mesma trava do desenho.
+
+Na tomada, o resultado é a digitação com p95 abaixo de 8 ms e o processador entre 32% e 33% de um núcleo a 60 quadros por segundo. A 30 quadros por segundo, o modo da bateria, o processador fica em 20%.
 
 `./scripts/scene-bench.ps1` mede cada parada a 60 e a 30 quadros por segundo e confere os três critérios do plano técnico: pelo menos 30 quadros por segundo, no máximo 35% de um núcleo do processador e digitação que aparece em menos de 16 ms. O relatório e uma imagem por parada ficam em `test-artifacts/desenho/`. Para ver quanto custa cada camada em cada parada, sem janela:
 

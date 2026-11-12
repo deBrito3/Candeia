@@ -34,7 +34,6 @@ sealed class NightScreen : Form
     readonly List<NightDefinition> nights;
     readonly FrameLoop loop;
     readonly Stopwatch clock = Stopwatch.StartNew();
-    readonly SceneTimings timings = new();
     readonly System.Windows.Forms.Timer rebuild = new() { Interval = 150 };
     readonly System.Windows.Forms.Timer keep = new() { Interval = 3000 };
     readonly Campaign campaign;
@@ -48,7 +47,8 @@ sealed class NightScreen : Form
     readonly TitleBar title;
     readonly LampStrip lampStrip;
     readonly InfoPane info;
-    SceneRenderer? renderer;
+    // The scene, drawn on its own thread (SceneWorker).
+    SceneWorker? scene;
     NightSession session = null!;
     int outputVersion = -1, lampsVersion = -1, hintsShown = -1, reviewVersion = -1;
     bool hintsOffered;
@@ -98,6 +98,7 @@ sealed class NightScreen : Form
         editor.TextChanged += (_, _) => { keep.Stop(); keep.Start(); };
         keep.Tick += (_, _) => { keep.Stop(); KeepCode(); };
         Options.Changed += ApplySettings;
+        CrashReport.Saving += KeepCode;
         if (benchmark)
         {
             FormBorderStyle = FormBorderStyle.None;
@@ -187,6 +188,7 @@ sealed class NightScreen : Form
         }
         if (settings.FontScale != fontScale) Rebuild();
         SetLevels();
+        Pace(Seconds);
         if (session.English != settings.English)
         {
             session.English = settings.English;
@@ -198,6 +200,21 @@ sealed class NightScreen : Form
             UpdatePanels();
         }
     }
+
+    // 30 frames a second on battery (when the player keeps that option), 60 otherwise.
+    double powerCheckedAt = -10;
+
+    void Pace(double now)
+    {
+        powerCheckedAt = now;
+        bool battery = SystemInformation.PowerStatus.PowerLineStatus == PowerLineStatus.Offline;
+        loop.TargetFps = ForcedFps ?? (battery && Options.Settings.BatterySaver ? 30 : 60);
+    }
+
+    // For the bench: a frame rate held whatever the power.
+    internal double? ForcedFps;
+
+    public double TargetFps => loop.TargetFps;
 
     void SetLevels()
     {
@@ -241,6 +258,14 @@ sealed class NightScreen : Form
     {
         base.OnHandleCreated(e);
         MainWindow.DarkTitleBar(Handle, Palette.Night);
+        // Full screen creates the window again, with a new handle for the scene to draw on.
+        if (scene is not null) scene.Window = Handle;
+    }
+
+    protected override void OnHandleDestroyed(EventArgs e)
+    {
+        if (scene is not null) scene.Window = IntPtr.Zero;
+        base.OnHandleDestroyed(e);
     }
 
     protected override void OnShown(EventArgs e)
@@ -256,7 +281,7 @@ sealed class NightScreen : Form
     protected override void OnSizeChanged(EventArgs e)
     {
         base.OnSizeChanged(e);
-        if (renderer is null) return;
+        if (scene is null) return;
         rebuild.Stop();
         rebuild.Start();
     }
@@ -265,9 +290,9 @@ sealed class NightScreen : Form
     void Rebuild()
     {
         if (WindowState == FormWindowState.Minimized || ClientSize.Width < 64 || ClientSize.Height < 64) return;
-        if (renderer is null) renderer = new SceneRenderer(ClientSize);
-        else renderer.Resize(ClientSize);
-        var layout = renderer.Layout;
+        if (scene is null) scene = new SceneWorker(ClientSize, Handle, Stats);
+        else scene.Resize(ClientSize);
+        var layout = scene.Layout;
         var old = style;
         fontScale = Options.Settings.FontScale;
         style = new SystemStyle(layout.Scale, fontScale);
@@ -300,6 +325,7 @@ sealed class NightScreen : Form
         double now = Seconds, dt = Math.Clamp(now - last, 0, 0.25) + skip;
         last = now;
         skip = 0;
+        if (now - powerCheckedAt > 2) Pace(now);
         var tick = session.Tick(dt);
         sound.Soft = Options.SoftScares;
         sound.Update(now, tick, session.Director.State, session.Lamps, session.Busy);
@@ -312,7 +338,8 @@ sealed class NightScreen : Form
         foreach (var cue in tick.Cues) React(cue, now);
         UpdatePanels();
         title.Animate(now);
-        if (renderer is null || WindowState == FormWindowState.Minimized || renderer.Layout.Size != ClientSize) return;
+        if (scene?.Failure is { } failure) throw new InvalidOperationException("The scene stopped drawing.", failure);
+        if (scene is null || WindowState == FormWindowState.Minimized) return;
 
         var creature = session.Director.State;
         houseLight += (session.HouseLight - houseLight) * Math.Min(1, dt * 3);
@@ -327,14 +354,8 @@ sealed class NightScreen : Form
             Lit: scare.Lit, Match: scare.Match, Sack: scare.Sack, Dark: scare.Dark,
             Candy: session.Clock.SweetPending && session.HintAvailable,
             Panels: scare.Panels);
-        renderer.Render(state, timings);
-        if (Options.Settings.Captions) renderer.DrawCaptions(sound.Captions(now), now);
-        long start = Stopwatch.GetTimestamp();
-        IntPtr hdc = Native.GetDC(Handle);
-        try { renderer.Present(hdc); }
-        finally { Native.ReleaseDC(Handle, hdc); }
-        timings.Present = Stopwatch.GetElapsedTime(start).TotalMilliseconds;
-        Stats.Add(timings, now);
+        // The scene's thread draws it and puts it on the screen; this thread goes back to the keys.
+        scene.Submit(state, Options.Settings.Captions ? [.. sound.Captions(now)] : [], ClientSize);
     }
 
     // The scares, second by second after the clock ran out (see the GDD, Derrota):
@@ -602,14 +623,16 @@ sealed class NightScreen : Form
 
     protected override void OnPaint(PaintEventArgs e)
     {
-        if (renderer is null || renderer.Layout.Size != ClientSize)
+        if (scene is null)
         {
             e.Graphics.Clear(Color.Black);
             return;
         }
+        bool shown;
         IntPtr hdc = e.Graphics.GetHdc();
-        try { renderer.Present(hdc); }
+        try { shown = scene.Present(hdc, ClientSize); }
         finally { e.Graphics.ReleaseHdc(hdc); }
+        if (!shown) e.Graphics.Clear(Color.Black);
     }
 
     protected override void OnPaintBackground(PaintEventArgs e) { }
@@ -627,11 +650,12 @@ sealed class NightScreen : Form
         if (disposing)
         {
             Options.Changed -= ApplySettings;
+            CrashReport.Saving -= KeepCode;
             loop.Dispose();
             rebuild.Dispose();
             keep.Dispose();
             completion.Dispose();
-            renderer?.Dispose();
+            scene?.Dispose();
             host.Dispose();
             player.Dispose();
             style.Dispose();

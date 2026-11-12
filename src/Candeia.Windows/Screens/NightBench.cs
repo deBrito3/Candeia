@@ -16,11 +16,12 @@ namespace Candeia.Screens;
 //           the processor, against the criteria of the rendering prototype.
 static class NightBench
 {
-    public static int Run(IReadOnlyList<NightDefinition> nights, string target, bool images)
+    // fps: a frame rate to hold whatever the power (the measurement of the battery saver while plugged in).
+    public static int Run(IReadOnlyList<NightDefinition> nights, string target, bool images, double? fps = null)
     {
         string folder = images ? target : Path.GetDirectoryName(Path.GetFullPath(target))!;
         Directory.CreateDirectory(folder);
-        using var screen = new NightScreen(nights[0], nights, benchmark: true);
+        using var screen = new NightScreen(nights[0], nights, benchmark: true) { ForcedFps = fps };
         int exit = 3;
         screen.Shown += async (_, _) =>
         {
@@ -205,6 +206,7 @@ static class NightBench
         text.AppendLine();
         text.AppendLine($"- Janela de {screen.ClientSize.Width}×{screen.ClientSize.Height}, {F(seconds, "0")} s com o relógio correndo, uma execução (F5) no meio.");
         text.AppendLine($"- Energia: {(SystemInformation.PowerStatus.PowerLineStatus == PowerLineStatus.Online ? "na tomada" : "na bateria (o Windows reduz a velocidade do processador)")}; som mixado e mudo.");
+        text.AppendLine($"- Alvo: {F(screen.TargetFps, "0")} quadros por segundo{(screen.TargetFps < 60 ? " (economia na bateria)" : "")}; a cena é desenhada numa thread própria.");
         text.AppendLine($"- Quadros por segundo: {F(frames.Fps)} (trabalho do quadro: mediana {F(frames.Work.Median)} ms, p95 {F(frames.Work.P95)} ms, máx. {F(frames.Work.Max)} ms): {(fpsOk ? "PASS" : "FALHA")}");
         text.AppendLine($"- Processador: {F(cpu, "0")}% de um núcleo (máximo 35%): {(cpuOk ? "PASS" : "FALHA")}");
         text.AppendLine($"- Digitação no editor com cores: mediana {F(spread.Median)} ms, p95 {F(spread.P95)} ms, máx. {F(spread.Max)} ms, {spread.Count} teclas, {lost} perdidas (p95 abaixo de 16 ms): {(typingOk ? "PASS" : "FALHA")}");

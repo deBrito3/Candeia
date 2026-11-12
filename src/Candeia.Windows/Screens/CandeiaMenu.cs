@@ -16,7 +16,7 @@ sealed class CandeiaMenu
     public enum Page { Boot, Difficulty, Main, Nights, Options }
 
     // The rows of the options page, in order.
-    public enum Row { Language, Difficulty, Font, Contrast, Captions, SoftScares, House, System, Creature, Music }
+    public enum Row { Language, Difficulty, Font, Contrast, Captions, SoftScares, House, System, Creature, Music, Battery }
 
     readonly Campaign campaign;
     bool confirmFresh;
@@ -171,7 +171,8 @@ sealed class CandeiaMenu
             Row.House => s with { HouseVolume = Step(s.HouseVolume, by) },
             Row.System => s with { SystemVolume = Step(s.SystemVolume, by) },
             Row.Creature => s with { CreatureVolume = Step(s.CreatureVolume, by) },
-            _ => s with { MusicVolume = Step(s.MusicVolume, by) },
+            Row.Music => s with { MusicVolume = Step(s.MusicVolume, by) },
+            _ => s with { BatterySaver = !s.BatterySaver },
         });
     }
 
@@ -219,6 +220,7 @@ sealed class CandeiaMenu
                     $"{T("Volume do sistema", "System volume")}: {Percent(s.SystemVolume)}",
                     $"{T("Volume dele", "His volume")}: {Percent(s.CreatureVolume)}",
                     $"{T("Volume da trilha", "Score volume")}: {Percent(s.MusicVolume)}",
+                    $"{T("Na bateria, 30 quadros por segundo", "On battery, 30 frames a second")}: {Yes(s.BatterySaver)}",
                 ];
         }
         return [];

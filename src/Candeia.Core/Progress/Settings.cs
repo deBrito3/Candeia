@@ -14,6 +14,8 @@ public sealed record Settings
     public bool Captions { get; init; } = true;
     // The editor in white and strong colours on black.
     public bool HighContrast { get; init; }
+    // On battery, the scene is drawn 30 times a second instead of 60: half the processor's work.
+    public bool BatterySaver { get; init; } = true;
     // The editor's font, as an index into FontScales; 1 is the normal size.
     public int FontStep { get; init; } = 1;
     // The volume of each layer of sound, 0 to 1.
