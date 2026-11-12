@@ -12,8 +12,13 @@ public enum LampState { Unknown, Lit, Out }
 
 public enum OutputKind { Plain, Heading, Pass, Fail, Error, Time, Program, Win, Warning }
 
-// One line of the system's output panel. Line is the code line it points to, when there is one.
-public sealed record OutputLine(OutputKind Kind, string Text, int? Line = null);
+// One line of the system's output panel. Line is the code line it points to, when there is one; Fix is
+// that line corrected, when the checker knows the fix (the CORRIGIR button).
+public sealed record OutputLine(OutputKind Kind, string Text, int? Line = null, string? Fix = null);
+
+// The review of a won night: the winning code, how many times each of its lines ran (index = line), the
+// marks, the time left, the candles lost, the attempts, the sweets taken and what the night taught.
+public sealed record NightReview(string Code, IReadOnlyList<long> Lines, NightMarks Marks, double SecondsLeft, int CandlesLost, int Attempts, int Sweets, Bilingual Learned);
 
 // What one call to Tick produced: the clock's events and the creature's cues, for the scene and the sound.
 public sealed record SessionTick(IReadOnlyList<ClockEvent> Events, IReadOnlyList<CreatureCue> Cues);
@@ -68,6 +73,13 @@ public sealed class NightSession
     // How many times the night was started over after a capture, plus one.
     public int Attempt { get; private set; } = 1;
 
+    // The whole night, every attempt counted: a capture cost every candle, and a sweet taken before it is
+    // still a sweet taken. Distância is the winning attempt's own (how much of its time was left).
+    int candlesBefore, sweetsBefore;
+    public int CandlesLost => candlesBefore + Clock.CandlesLost;
+    public int SweetsAccepted => sweetsBefore + Clock.SweetsAccepted;
+    public NightMarks Marks => Clock.Marks with { Unharmed = CandlesLost == 0, NoSweet = SweetsAccepted == 0 };
+
     public IReadOnlyList<LampState> Lamps => lamps;
     public IReadOnlyList<OutputLine> Output => output;
 
@@ -75,17 +87,28 @@ public sealed class NightSession
     public int OutputVersion { get; private set; }
     public int LampsVersion { get; private set; }
 
-    // How many layers of the night's hints the player opened: the idea, the commands, the skeleton. They
-    // stay open after a capture. For now they are free; the sweet's price comes with the notebook.
+    // How many layers of the night's hints the player opened: the idea, the commands, the skeleton. Each
+    // layer is a sweet from him: it costs time and the "No sweet" mark (free in Vigil, none in Nightmare).
+    // After a capture, the next layer comes free, as a new page of the notebook. Open layers stay open.
     public int HintsShown { get; private set; }
 
-    // Opens the next layer. False when every layer is already open.
+    // Whether the next layer can be had, and what it costs in seconds (0 when free).
+    public bool HintAvailable => Penalties.SweetAvailable && HintsShown < Night.Hints.Count && Clock.State is not (ClockState.Won or ClockState.Captured);
+    public double HintCost => Penalties.SweetCost;
+
+    // Takes a sweet: the next layer opens and the clock pays for it. False when there is nothing to give.
     public bool ShowHint()
     {
-        if (HintsShown >= Night.Hints.Count) return false;
+        if (!HintAvailable) return false;
         HintsShown++;
+        queued.AddRange(Clock.AcceptSweet());
         return true;
     }
+
+    // The review of a won night: the code with how many times each line ran, filled in the background.
+    public NightReview? Review { get; private set; }
+    Task<IReadOnlyList<long>>? reviewing;
+    string won = "";
 
     // The line the editor marks: the first error of the last check or run, or null.
     public int? ErrorLine { get; private set; }
@@ -129,12 +152,19 @@ public sealed class NightSession
     {
         if (Clock.State != ClockState.Captured) return;
         Attempt++;
+        // A new page of the notebook: the next hint, free.
+        bool page = HintsShown < Night.Hints.Count;
+        if (page) HintsShown++;
+        candlesBefore += Clock.CandlesLost;
+        sweetsBefore += Clock.SweetsAccepted;
         Clock = new NightClock(Penalties, Night.Tests.Count);
         Director = new CreatureDirector(Penalties, Night.Events);
         lamps = new LampState[Night.Tests.Count];
         LampsVersion++;
         ErrorLine = null;
-        Say([new(OutputKind.Heading, T($"Tentativa {Attempt}. O seu código continua aqui.", $"Attempt {Attempt}. Your code is still here."))]);
+        var lines = new List<OutputLine> { new(OutputKind.Heading, T($"Tentativa {Attempt}. O seu código continua aqui.", $"Attempt {Attempt}. Your code is still here.")) };
+        if (page) lines.Add(new(OutputKind.Plain, T($"Uma página nova no caderno: a dica {HintsShown} abriu sem custo (Ctrl+3).", $"A new page in the notebook: hint {HintsShown} opened at no cost (Ctrl+3).")));
+        Say(lines);
     }
 
     public SessionTick Tick(double seconds)
@@ -145,6 +175,7 @@ public sealed class NightSession
         if (compiling is { IsCompleted: true } compiled) Compiled(compiled.Result, events);
         if (running is { IsCompleted: true } finished) Finished(finished.Result);
         if (revealing is not null) Reveal(seconds, events);
+        if (reviewing is { IsCompleted: true } review) Reviewed(review);
         Describe(events);
         var cues = Director.Update(Clock, events);
         return new(events, cues);
@@ -163,7 +194,7 @@ public sealed class NightSession
         {
             events.AddRange(Clock.Listened());
             var lines = new List<OutputLine> { new(OutputKind.Heading, T("O código não compilou. Ele escuta.", "The code did not compile. He listens.")) };
-            lines.AddRange(result.Errors.Select(e => new OutputLine(OutputKind.Error, e.Format(english), e.Line)));
+            lines.AddRange(result.Errors.Select(e => new OutputLine(OutputKind.Error, e.Format(english) + (e.Fix is null ? "" : T("  [CORRIGIR: duplo clique]", "  [FIX: double click]")), e.Line, e.Fix?.Text)));
             ErrorLine = result.Errors.Count > 0 ? result.Errors[0].Line : null;
             Say(lines);
             return;
@@ -206,7 +237,31 @@ public sealed class NightSession
         revealing = null;
         var passed = Enumerable.Range(0, lamps.Length).Select(i => lamps[i] == LampState.Lit).ToList();
         events.AddRange(Clock.ApplyRun(new RunOutcome(passed, PenaltyRules.Crashed(result.Stop), missing)));
+        if (Clock.State == ClockState.Won) BeginReview();
     }
+
+    // The winning code runs once more, compiled to count its lines, for the post-night review.
+    void BeginReview()
+    {
+        won = source;
+        string code = source;
+        reviewing = Task.Run<IReadOnlyList<long>>(() =>
+        {
+            var compiled = runtime.CompileForRun(code, options, countLines: true);
+            if (!compiled.Success) return [];
+            return run(Night.Request(compiled.Assembly!, compiled.Pdb)).Lines;
+        });
+    }
+
+    void Reviewed(Task<IReadOnlyList<long>> task)
+    {
+        reviewing = null;
+        var lines = task.IsCompletedSuccessfully ? task.Result : [];
+        Review = new NightReview(won, lines, Marks, Clock.Remaining, CandlesLost, Attempt, SweetsAccepted, Night.Learned);
+        ReviewVersion++;
+    }
+
+    public int ReviewVersion { get; private set; }
 
     // The output of a finished run: each test, what the program printed, and why it stopped early.
     List<OutputLine> Results(RunResult result)
@@ -278,7 +333,7 @@ public sealed class NightSession
                     lines.Add(new(OutputKind.Warning, T($"A casa acendeu, mas o LEIA-ME ainda pede {needs}.", $"The house is lit, but the README still asks for {needs}.")));
                     break;
                 case ClockEventKind.Won:
-                    var marks = Clock.Marks;
+                    var marks = Marks;
                     string Mark(bool got, string pt, string en) => $"{(got ? "●" : "○")} {T(pt, en)}";
                     lines.Add(new(OutputKind.Win, T("NOITE VENCIDA. A casa acendeu, e ele foi embora.", "NIGHT WON. The house is lit, and he went away.")));
                     lines.Add(new(OutputKind.Win, $"{Mark(marks.Unharmed, "Ileso", "Unharmed")}   {Mark(marks.NoSweet, "Sem doce", "No sweet")}   {Mark(marks.Distance, "Distância", "Distance")}"));
@@ -288,6 +343,16 @@ public sealed class NightSession
                     lines.Add(new(OutputKind.Warning, e.Count == 1
                         ? T("O tempo acabou. Uma vela apagou: resta uma. Respire.", "Time ran out. A candle went out: one is left. Breathe.")
                         : T($"O tempo acabou. Uma vela apagou: restam {e.Count}. Respire.", $"Time ran out. A candle went out: {e.Count} are left. Breathe.")));
+                    break;
+                case ClockEventKind.SweetOffered when Penalties.SweetAvailable && HintsShown < Night.Hints.Count:
+                    lines.Add(new(OutputKind.Warning, HintCost > 0
+                        ? T($"Ele deixou um doce no parapeito: a próxima dica, por −{Minutes(HintCost)} e a marca Sem doce. Ctrl+3 na aba DICAS aceita.", $"He left a sweet on the windowsill: the next hint, for −{Minutes(HintCost)} and the No sweet mark. Ctrl+3 on the HINTS tab takes it.")
+                        : T("Ele deixou um doce no parapeito: a próxima dica, de graça na Vigília. Ctrl+3 na aba DICAS aceita.", "He left a sweet on the windowsill: the next hint, free in Vigil. Ctrl+3 on the HINTS tab takes it.")));
+                    break;
+                case ClockEventKind.SweetCost:
+                    lines.Add(new(OutputKind.Time, e.Seconds < 0
+                        ? $"−{Minutes(-e.Seconds)}  {T($"um doce aceito: a dica {HintsShown} abriu", $"a sweet taken: hint {HintsShown} opened")}"
+                        : T($"Um doce aceito: a dica {HintsShown} abriu.", $"A sweet taken: hint {HintsShown} opened.")));
                     break;
                 case ClockEventKind.Captured:
                     lines.Add(new(OutputKind.Error, T("A última vela apagou. Ele te pegou.", "The last candle went out. He took you.")));

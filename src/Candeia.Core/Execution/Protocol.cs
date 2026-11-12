@@ -59,6 +59,7 @@ sealed class RunnerMessage
     public int? ErrorLine { get; set; }
     public Dictionary<string, long>? Marks { get; set; }
     public Dictionary<string, long>? Calls { get; set; }
+    public long[]? Lines { get; set; }
     public string? Stop { get; set; }
     public string? Detail { get; set; }
 }

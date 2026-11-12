@@ -77,6 +77,8 @@ public static class NightLoader
         if (type.Length > 0 && !Types.Contains(type)) errors.Add($"night.json: type \"{type}\" is not one of {string.Join(", ", Types)}");
         bool intro = root.TryGetProperty("intro", out var introValue) && introValue.ValueKind == JsonValueKind.True;
         var title = new Bilingual(Text(Child(root, "title", errors), "pt", errors, "title.pt"), Text(Child(root, "title", errors), "en", errors, "title.en"));
+        // One line for the notebook, after the night is won: what it taught.
+        var learned = new Bilingual(Text(Child(root, "learned", errors), "pt", errors, "learned.pt"), Text(Child(root, "learned", errors), "en", errors, "learned.en"));
         string @class = Text(root, "class", errors);
 
         var methods = new List<NightMethod>();
@@ -143,7 +145,7 @@ public static class NightLoader
         var en = HintLayers(hintsEn, "hints.en.md", errors);
         if (errors.Count > 0) return null;
         return new(id, act, order, type, intro, title, @class, methods, concepts, tests, tolerance, limits, events, starter,
-            new(readmePt.Trim(), readmeEn.Trim()), pt.Zip(en, (p, e) => new Bilingual(p, e)).ToList(), folder);
+            new(readmePt.Trim(), readmeEn.Trim()), pt.Zip(en, (p, e) => new Bilingual(p, e)).ToList(), folder) { Learned = learned };
     }
 
     // Requirements a night can make: a mark the code must run (if, for...), a local variable of a type it

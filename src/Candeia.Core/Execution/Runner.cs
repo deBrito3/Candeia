@@ -135,9 +135,11 @@ public static class Runner
             var marks = (long[])probe.GetField("Marks")!.GetValue(null)!;
             var calls = (long[])probe.GetField("Calls")!.GetValue(null)!;
             var methods = (string[])probe.GetField("Methods")!.GetValue(null)!;
+            var lines = probe.GetField("Lines")?.GetValue(null) as long[];
             Send(protocol, new RunnerMessage
             {
                 Kind = "done", Stop = stop,
+                Lines = lines is { Length: > 1 } ? lines : null,
                 Marks = Probe.MarkNames.Select((name, i) => (name, i)).ToDictionary(p => p.name, p => marks[p.i]),
                 Calls = methods.Select((name, i) => (name, i)).GroupBy(p => p.name).ToDictionary(g => g.Key, g => g.Sum(p => calls[p.i])),
             });

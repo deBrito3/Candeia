@@ -16,6 +16,8 @@ public sealed class SoundBank
         "key1", "key2", "key3", "relay", "lamp-on", "lamp-out", "pass", "error", "surge",
         // Him.
         "cane", "gate", "psiu", "steps-grass", "steps-wood", "steps-away", "wrapper", "breath", "cough", "door", "thunder", "candle-out", "sack",
+        // The scares.
+        "match", "sting",
     ];
 
     // Each sound is made once, on its own: asking for a click never waits for the thunder being made in
@@ -62,6 +64,8 @@ public sealed class SoundBank
         "thunder" => new(name, Edges(Normalize(Thunder(), 0.9f), 0.05)),
         "candle-out" => new(name, Edges(Normalize(CandleOut(), 0.7f))),
         "sack" => new(name, Edges(Normalize(Sack(), 0.85f))),
+        "match" => new(name, Edges(Normalize(Match(), 0.75f))),
+        "sting" => new(name, Edges(Normalize(Sting(), 0.9f), 0.01)),
         _ => throw new ArgumentException($"No sound named {name}.", nameof(name)),
     };
 
@@ -322,6 +326,39 @@ public sealed class SoundBank
         {
             band.Tune(2000 - 1500 * t / 0.6);
             return band.Process(noise.Next()) * Window(t, 0.6, 0.03, 0.35);
+        });
+    }
+
+    // A match struck in the dark: the scratch on the box, then the flame catching.
+    static float[] Match()
+    {
+        var noise = new Noise(28);
+        var scratch = new Resonator(3200, 3);
+        var flame = new LowPass(1400);
+        return Render(1.0, (i, t) =>
+        {
+            float rough = 0.6f + 0.4f * Sine(70 * t);
+            float s = scratch.Process(noise.Next()) * rough * Window(t, 0.12, 0.005, 0.03);
+            float catching = flame.Process(noise.Next()) * Env(t - 0.12, 0.03, 0.5);
+            float crackle = noise.Uniform() < 0.0015 && t > 0.15 ? 2 : 0;
+            return s * 1.4f + catching + crackle * Env(t - 0.12, 0.01, 0.6);
+        });
+    }
+
+    // He is beside you: a low blow and a cluster of high notes a semitone apart, grinding, fading slowly.
+    static float[] Sting()
+    {
+        var noise = new Noise(29);
+        var thump = new LowPass(140);
+        var scrape = new Resonator(2900, 6);
+        double phase = 0;
+        return Render(2.6, (i, t) =>
+        {
+            phase += (60 - 25 * Math.Min(1, t / 0.8)) / Rate;
+            float boom = (Sine(phase) + thump.Process(noise.Next()) * 2) * Env(t, 0.004, 0.9);
+            float cluster = (Sine(1480 * t) + Sine(1567.98 * t) + Sine(1661.22 * t)) * (0.7f + 0.3f * Sine(9 * t)) * Env(t, 0.02, 1.6) / 3;
+            float grind = scrape.Process(noise.Next()) * Env(t, 0.03, 1.2);
+            return boom * 0.9f + cluster * 0.5f + grind * 0.4f;
         });
     }
 

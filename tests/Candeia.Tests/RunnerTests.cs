@@ -29,6 +29,30 @@ static class RunnerTests
 
         using var host = Host();
         host.Warm();
+
+        // For the post-night review: how many times each line ran, in a run compiled to count lines.
+        const string counter = """
+            public static class Counter
+            {
+                public static int Sum(int n)
+                {
+                    int total = 0;
+                    for (int i = 0; i < n; i++)
+                        total += i;
+                    if (total > 1000)
+                        return -1;
+                    else
+                        return total;
+                }
+            }
+            """;
+        var counting = Runtime.CompileForRun(counter, new(), countLines: true);
+        var counted = host.Run(new RunRequest(counting.Assembly!, counting.Pdb, "Counter", "Sum", [Json.Test(10, 5), Json.Test(45, 10)], new()));
+        long At(int line) => line < counted.Lines.Count ? counted.Lines[line] : -1;
+        t.Check(counted.AllPassed && At(5) == 2 && At(6) == 2 && At(7) == 15 && At(8) == 2 && At(9) == 0 && At(11) == 2,
+            $"line counts: {string.Join(",", counted.Lines.Select((n, i) => $"{i}:{n}").Where(p => !p.EndsWith(":0")))}");
+        var plain = host.Run(new RunRequest(Runtime.CompileForRun(counter, new()).Assembly!, null, "Counter", "Sum", [Json.Test(10, 5)], new()));
+        t.Check(plain.AllPassed && plain.Lines.Count == 0, "a normal run does not count lines");
         const string yard = """
             public static class Yard
             {

@@ -37,6 +37,9 @@ public sealed record NightDefinition(
     IReadOnlyList<Bilingual> Hints,
     string Folder)
 {
+    // What the night taught, in one line for the notebook after it is won.
+    public Bilingual Learned { get; init; } = new("", "");
+
     public int HiddenTests => Tests.Count(t => t.Hidden);
 
     public RunRequest Request(byte[] assembly, byte[]? pdb) =>

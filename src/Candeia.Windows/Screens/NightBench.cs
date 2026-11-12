@@ -10,7 +10,8 @@ namespace Candeia.Screens;
 
 // Automatic runs of the night screen, in a borderless 1920×1080 window:
 //   Images: the moments of night 1, one picture each (the LEIA-ME, a compile error, the starter's run, the
-//           hints, a candle lost, the win), for visual review.
+//           sweet and its hint, the notebook, the near capture, the capture, the review and the win), for
+//           visual review.
 //   Measure: typing in the real editor while the night runs (with a run in the middle), the frame rate and
 //           the processor, against the criteria of the rendering prototype.
 static class NightBench
@@ -48,32 +49,87 @@ static class NightBench
         await Settle(screen);
         SceneBench.Capture(screen, Path.Combine(folder, "3-uma-lampada.png"));
 
-        screen.Command(Keys.Control | Keys.D3);
+        // He offers a sweet after a while without a new lamp: the candy on the sill, its price in DICAS.
+        var session = screen.Session;
+        double quiet = session.Penalties.Rules.SweetAfterFractionWithoutLamp * session.Clock.StartSeconds + 1;
+        screen.Skip(Math.Min(quiet, session.Clock.Remaining - 5));
+        await Task.Delay(400);
         screen.Command(Keys.Control | Keys.D3);
         await Task.Delay(300);
-        SceneBench.Capture(screen, Path.Combine(folder, "4-dicas.png"));
+        SceneBench.Capture(screen, Path.Combine(folder, "4-doce.png"));
+        screen.Command(Keys.Control | Keys.D3);
+        await Task.Delay(300);
+        SceneBench.Capture(screen, Path.Combine(folder, "5-dica.png"));
+
+        // The notebook, from F1 on a word of the code.
+        screen.Editor.Select(screen.Editor.Text.IndexOf("return watts", StringComparison.Ordinal), 0);
+        screen.Command(Keys.F1);
+        await Task.Delay(300);
+        SceneBench.Capture(screen, Path.Combine(folder, "6-caderno.png"));
         screen.Command(Keys.Control | Keys.D2);
 
-        // Time runs out: a candle goes and the night gives a breath.
-        screen.Session.Tick(screen.Session.Clock.Remaining + 1);
-        await Task.Delay(600);
-        SceneBench.Capture(screen, Path.Combine(folder, "5-vela-apagada.png"));
+        // Time runs out with candles left: he is beside you, a match is struck, and a candle goes.
+        var scare = await RunOut(screen);
+        await Until(scare, 0.9);
+        SceneBench.Capture(screen, Path.Combine(folder, "7-ao-lado.png"));
+        await Until(scare, 1.55);
+        SceneBench.Capture(screen, Path.Combine(folder, "8-fosforo.png"));
+        await Until(scare, 3.0);
+        SceneBench.Capture(screen, Path.Combine(folder, "9-vela-apagada.png"));
 
+        // The last candle: he is lit beside you, the sack closes, then the message.
+        while (session.Clock.State != ClockState.Captured) scare = await RunOut(screen);
+        await Until(scare, 1.65);
+        SceneBench.Capture(screen, Path.Combine(folder, "10-captura.png"));
+        await Until(scare, 2.5);
+        SceneBench.Capture(screen, Path.Combine(folder, "11-saco.png"));
+        await Until(scare, 4.6);
+        SceneBench.Capture(screen, Path.Combine(folder, "12-ele-te-pegou.png"));
+
+        // Enter starts over; the solution wins, and the review opens.
+        screen.Command(Keys.Enter);
+        screen.Command(Keys.Enter);
         if (Solution(night) is { } solution)
         {
-            await Task.Delay((int)(screen.Session.Penalties.Rules.RespiteSeconds * 1000) + 500);
             screen.Editor.Load(solution);
             screen.Run();
             await Settle(screen);
+            var watch = Stopwatch.StartNew();
+            while (session.Review is null && watch.Elapsed.TotalSeconds < 30) await Task.Delay(50);
             await Task.Delay(1500);
-            SceneBench.Capture(screen, Path.Combine(folder, "6-vitoria.png"));
+            SceneBench.Capture(screen, Path.Combine(folder, "13-revisao.png"));
+            screen.Command(Keys.Control | Keys.D2);
+            await Task.Delay(300);
+            SceneBench.Capture(screen, Path.Combine(folder, "14-vitoria.png"));
         }
         return 0;
     }
 
+    // Skips to the end of the clock (and through a breath) until a candle goes out or he takes you; returns
+    // a stopwatch started when the screen saw it, so the pictures land at the scare's moments.
+    static async Task<Stopwatch> RunOut(NightScreen screen)
+    {
+        var session = screen.Session;
+        int lost = session.Clock.CandlesLost;
+        var guard = Stopwatch.StartNew();
+        while (session.Clock.CandlesLost == lost && session.Clock.State != ClockState.Captured && guard.Elapsed.TotalSeconds < 30)
+        {
+            if (session.Clock.State is ClockState.Coding or ClockState.Respite && !session.Busy)
+                screen.Skip(Math.Max(session.Clock.Remaining, session.Penalties.Rules.RespiteSeconds) + 0.5);
+            await Task.Delay(5);
+        }
+        return Stopwatch.StartNew();
+    }
+
+    static async Task Until(Stopwatch since, double seconds)
+    {
+        int wait = (int)(seconds * 1000 - since.Elapsed.TotalMilliseconds);
+        if (wait > 0) await Task.Delay(wait);
+    }
+
     // The reference solution of a night, read from the repository when the game runs from it. It is never
     // shipped with the game.
-    static string? Solution(NightDefinition night)
+    internal static string? Solution(NightDefinition night)
     {
         for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir is not null; dir = dir.Parent)
         {

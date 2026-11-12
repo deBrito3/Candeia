@@ -45,6 +45,20 @@ static class BootScreen
         string hint = "Enter liga a casa";
         var hintSize = g.MeasureString(hint, small);
         g.DrawString(hint, small, dim, cx - hintSize.Width / 2f, py + subtitleSize.Height * 2.2f);
+
+        // The photosensitivity warning, and the soft scares.
+        string[] warning =
+        [
+            "Aviso: este jogo tem clarões de relâmpago, sustos e sons altos de repente.",
+            $"S liga os sustos suaves, sem clarões: {(Options.SoftScares ? "LIGADOS" : "desligados")}.",
+        ];
+        float wy = size.Height - unit * 9;
+        foreach (var line in warning)
+        {
+            var lineSize = g.MeasureString(line, small);
+            g.DrawString(line, small, line.StartsWith('S') ? amber : dim, cx - lineSize.Width / 2f, wy);
+            wy += lineSize.Height * 1.2f;
+        }
     }
 
     public static void SaveShot(string path, Size size)

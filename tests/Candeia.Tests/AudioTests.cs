@@ -137,6 +137,44 @@ static class AudioTests
         t.Check(!director.Captions(11 + SoundDirector.CaptionSeconds + 1).Any(), "captions go away after a few seconds");
         director.Key();
         t.Check(voices().Any(v => v.Sound.StartsWith("key", StringComparison.Ordinal) && v.Channel == Channel.Interface), "typing clicks");
+
+        // The scares come after a silence. Time ran out with candles left: he comes close, a match, a candle.
+        double house = mixer.ChannelVolume(Channel.House), music = mixer.ChannelVolume(Channel.Music);
+        director.Update(20, Tick(events: [new(ClockEventKind.NearCapture)]), street, lamps, false);
+        t.Check(mixer.ChannelVolume(Channel.House) < house * 0.1 && mixer.ChannelVolume(Channel.Music) < music * 0.1 && !voices().Any(v => v.Sound is "match" or "candle-out"), "time runs out: first, silence");
+        director.Update(21.45, Tick(), street, lamps, false);
+        t.Check(voices().Any(v => v.Sound == "match") && Math.Abs(mixer.ChannelVolume(Channel.House) - house) < 1e-9 && director.Captions(21.45).Any(cap => cap.Pt == "um fósforo é riscado"), "then a match is struck, and the house comes back");
+        director.Update(21.8, Tick(), street, lamps, false);
+        t.Check(voices().Any(v => v.Sound == "candle-out") && director.Captions(21.8).Any(cap => cap.Pt == "uma vela se apaga"), "and a candle goes out");
+
+        // The last candle: silence, he is beside you, then the sack.
+        director.Update(30, Tick(cues: [new(CueKind.Captured, Station.Beside)]), street, lamps, false);
+        t.Check(mixer.ChannelVolume(Channel.Creature) < 0.1 && !voices().Any(v => v.Sound is "sting" or "sack"), "the capture starts in silence");
+        director.Update(31.55, Tick(), street, lamps, false);
+        t.Check(voices().Any(v => v.Sound == "sting") && !voices().Any(v => v.Sound == "sack") && director.Captions(31.55).Any(cap => cap.Pt == "ele está ao seu lado"), "then the sting: he is beside you");
+        director.Update(31.85, Tick(), street, lamps, false);
+        t.Check(voices().Any(v => v.Sound == "sack"), "then the sack closes");
+
+        // A sweet: a wrapper on the windowsill, to the left.
+        director.Update(40, Tick(events: [new(ClockEventKind.SweetOffered)]), street, lamps, false);
+        t.Check(voices().Any(v => v.Sound == "wrapper" && v.Pan < 0) && director.Captions(40).Any(cap => cap.Pt == "papel de bala no parapeito"), "a sweet: the wrapper on the windowsill");
+
+        // Closing the night in the middle of a silence gives the channels back.
+        director.Update(50, Tick(events: [new(ClockEventKind.NearCapture)]), street, lamps, false);
+        director.End();
+        t.Check(Math.Abs(mixer.ChannelVolume(Channel.House) - house) < 1e-9, "closing the night during a silence ends the silence");
+
+        // Soft scares: the sting and the sack are quieter.
+        var softMixer = new Mixer();
+        var soft = new SoundDirector(softMixer, bank) { Soft = true };
+        soft.Begin();
+        soft.Update(0, Tick(cues: [new(CueKind.Captured, Station.Beside)]), street, lamps, false);
+        soft.Update(1.9, Tick(), street, lamps, false);
+        director.Begin();
+        director.Update(0, Tick(cues: [new(CueKind.Captured, Station.Beside)]), street, lamps, false);
+        director.Update(1.9, Tick(), street, lamps, false);
+        double Loud(Mixer m, string sound) => m.Voices().Where(v => v.Sound == sound).Select(v => v.Volume).DefaultIfEmpty(0).Max();
+        t.Check(Loud(softMixer, "sting") > 0 && Loud(softMixer, "sting") < Loud(mixer, "sting") * 0.5 && Loud(softMixer, "sack") < Loud(mixer, "sack"), "soft scares: a quieter sting and sack");
     }
 
     static SessionTick Tick(IReadOnlyList<ClockEvent>? events = null, IReadOnlyList<CreatureCue>? cues = null) => new(events ?? [], cues ?? []);

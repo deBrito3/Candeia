@@ -15,7 +15,9 @@ static class Probe
     public static readonly string[] MarkNames = ["if", "switch", "conditional", "for", "foreach", "while", "do"];
     public static int Mark(string name) => Array.IndexOf(MarkNames, name);
 
-    public static string Source(IReadOnlyList<string> methods) => $$"""
+    // With lines > 0, the probe also counts how many times each line of the player's code ran (the
+    // post-night review asks for it with one extra run).
+    public static string Source(IReadOnlyList<string> methods, int lines = 0) => $$"""
         namespace __Candeia
         {
             public static class __Probe
@@ -27,6 +29,8 @@ static class Probe
                 public static long[] Marks = new long[{{MarkNames.Length}}];
                 public static long[] Calls = new long[{{Math.Max(1, methods.Count)}}];
                 public static string[] Methods = new string[] { {{string.Join(", ", methods.Select(m => SymbolDisplay.FormatLiteral(m, quote: true)))}} };
+                public static long[] Lines = new long[{{lines + 1}}];
+                public static void Line(int line) { Lines[line]++; }
                 public static void Step() { if (++Steps > Limit) Exceeded(); }
                 public static void Enter(int method)
                 {

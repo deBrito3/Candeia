@@ -13,7 +13,8 @@ namespace Candeia.Screens;
 // The screen of a night: the candle-lit room around the old monitor, and the CANDEIA system on its glass
 // (title bar with the presence sensors, the lamps, the editor, the LEIA-ME and the output). The night
 // itself is a NightSession; this screen only shows it and passes on the keys:
-//   F5 run · Esc pause · Ctrl+1 LEIA-ME · Ctrl+2 SAÍDA · Ctrl+3 DICAS (again: the next hint)
+//   F5 run · Esc pause · Ctrl+1 LEIA-ME · Ctrl+2 SAÍDA · Ctrl+3 DICAS (again: take a sweet, the next hint)
+//   Ctrl+4 CADERNO · F1 the notebook page of the word under the caret · Ctrl+5 REVISÃO
 //   Enter start, next night, or start over · F11 full screen
 sealed class NightScreen : Form
 {
@@ -36,7 +37,9 @@ sealed class NightScreen : Form
     readonly InfoPane info;
     SceneRenderer? renderer;
     NightSession session = null!;
-    int outputVersion = -1, lampsVersion = -1, hintsShown = -1;
+    int outputVersion = -1, lampsVersion = -1, hintsShown = -1, reviewVersion = -1;
+    bool hintsOffered;
+    readonly IReadOnlyList<NotebookPage> notebook;
     double last, arrivedAt = -10, apparitionUntil, flashAt = -10, houseLight;
     Station apparition;
     bool paused;
@@ -55,6 +58,7 @@ sealed class NightScreen : Form
         runtime = new CSharpRuntime();
         host = new RunnerHost(Environment.ProcessPath ?? throw new InvalidOperationException("The game needs its own path to start the runner."));
         rules = NightRules.Load();
+        notebook = Notebook.Load().Pages;
         nights = all.OrderBy(n => n.Act).ThenBy(n => n.Order).ToList();
         gutter = new CodeGutter(editor);
         title = new TitleBar(style);
@@ -72,6 +76,9 @@ sealed class NightScreen : Form
             if (!editor.ReadOnly) sound.Key();
         };
         info.LineChosen += GoToLine;
+        info.FixChosen += ApplyFix;
+        info.PageChosen += p => info.ShowNotebook(notebook, p);
+        info.ShowNotebook(notebook, null);
         if (benchmark)
         {
             FormBorderStyle = FormBorderStyle.None;
@@ -111,12 +118,14 @@ sealed class NightScreen : Form
         info.ShowReadme(night.Readme.Pt + "\n\n**Enter** começa a noite. Ler não gasta tempo.");
         info.ShowOutput([]);
         info.Choose(InfoPane.Tab.Readme);
-        outputVersion = lampsVersion = hintsShown = -1;
+        outputVersion = lampsVersion = hintsShown = reviewVersion = -1;
+        info.ShowReview(null);
         houseLight = 0;
         arrivedAt = -10;
         apparitionUntil = 0;
         paused = false;
         sound.Begin();
+        scareAt = -10;
         UpdatePanels();
         editor.Focus();
     }
@@ -190,10 +199,17 @@ sealed class NightScreen : Form
 
     void Frame()
     {
-        double now = Seconds, dt = Math.Clamp(now - last, 0, 0.25);
+        double now = Seconds, dt = Math.Clamp(now - last, 0, 0.25) + skip;
         last = now;
+        skip = 0;
         var tick = session.Tick(dt);
+        sound.Soft = Options.SoftScares;
         sound.Update(now, tick, session.Director.State, session.Lamps, session.Busy);
+        foreach (var e in tick.Events)
+        {
+            if (e.Kind == ClockEventKind.NearCapture) { scareAt = now; capture = false; }
+            if (e.Kind == ClockEventKind.Captured) { scareAt = now; capture = true; }
+        }
         foreach (var cue in tick.Cues) React(cue, now);
         UpdatePanels();
         title.Animate(now);
@@ -201,12 +217,17 @@ sealed class NightScreen : Form
 
         var creature = session.Director.State;
         houseLight += (session.HouseLight - houseLight) * Math.Min(1, dt * 3);
+        var scare = Scare(now);
+        ShowPanels(scare.Panels);
         var state = new SceneState(now, creature.Station, now - arrivedAt, SceneQuality.High,
             Visible: creature.Visible && session.Clock.State != ClockState.Won,
             HouseLight: (float)houseLight,
             CandlesOut: Math.Clamp(session.Clock.CandlesLost, 0, Candles.All.Length),
-            Flash: Flash(now),
-            Apparition: now < apparitionUntil ? apparition : null);
+            Flash: Options.SoftScares ? 0 : Flash(now),
+            Apparition: scare.Apparition ?? (now < apparitionUntil ? apparition : null),
+            Lit: scare.Lit, Match: scare.Match, Sack: scare.Sack, Dark: scare.Dark,
+            Candy: session.Clock.SweetPending && session.HintAvailable,
+            Panels: scare.Panels);
         renderer.Render(state, timings);
         renderer.DrawCaptions(sound.Captions(now), now);
         long start = Stopwatch.GetTimestamp();
@@ -215,6 +236,51 @@ sealed class NightScreen : Form
         finally { Native.ReleaseDC(Handle, hdc); }
         timings.Present = Stopwatch.GetElapsedTime(start).TotalMilliseconds;
         Stats.Add(timings, now);
+    }
+
+    // The scares, second by second after the clock ran out (see the GDD, Derrota):
+    //   near capture: the room darkens and goes silent; he is beside you for a moment; a match is struck and
+    //     he is gone, with a candle;
+    //   capture: darkness and silence for a second and a half; then he is beside you, lit for the first
+    //     and only time, and the sack closes over the screen. The system's panels leave the screen while it
+    //     strikes and come back on the black, with the message. With soft scares: no flash, a slow fade, a
+    //     dimmer figure, and the panels never leave.
+    double scareAt = -10, skip;
+    bool capture, panelsShown = true;
+
+    // For the tests and the bench: the next frame moves the night on by this many seconds more, so the
+    // screen sees the clock's events as it would in play.
+    internal void Skip(double seconds) => skip = seconds;
+
+    (Station? Apparition, float Lit, float Match, float Sack, float Dark, bool Panels) Scare(double now) =>
+        scareAt < 0 || now < scareAt ? (null, 0, 0, 0, 0, true) : Scare(now - scareAt, capture, Options.SoftScares);
+
+    // The scare t seconds after it began.
+    internal static (Station? Apparition, float Lit, float Match, float Sack, float Dark, bool Panels) Scare(double t, bool capture, bool soft)
+    {
+        if (!capture)
+        {
+            if (t > 2.6) return (null, 0, 0, 0, 0, true);
+            float dark = (float)(t < 1.4 ? 0.35 * Math.Min(1, t / 0.3) : 0.35 * Math.Max(0, 1 - (t - 1.4) / 0.6));
+            bool beside = t is >= 0.5 and < 1.4;
+            float match = soft || t < 1.4 ? 0 : (float)Math.Exp(-(t - 1.4) * 3.5);
+            return (beside ? Station.Beside : null, beside ? 0.2f : 0, match, 0, dark, true);
+        }
+        float gloom = (float)Math.Min(0.45, 0.45 * t / 1.5);
+        if (t < 1.5) return (null, 0, 0, 0, gloom, true);
+        double closing = soft ? 3.0 : 1.4;
+        float sack = (float)Math.Clamp((t - 1.75) / closing, 0, 1);
+        bool panels = soft || t > 1.75 + closing + 0.4;
+        // The strike cuts the darkness away at once; the soft one keeps it and fades.
+        return (Station.Beside, soft ? 0.4f : 1f, 0, soft ? sack * 0.9f : sack, soft ? Math.Min(1, gloom + 0.3f * sack) : 0, panels);
+    }
+
+    void ShowPanels(bool shown)
+    {
+        if (shown == panelsShown) return;
+        panelsShown = shown;
+        foreach (Control panel in new Control[] { title, lampStrip, gutter, editor, info }) panel.Visible = shown;
+        if (shown) editor.Focus();
     }
 
     // Two short lightning flashes, under the three-a-second limit for flashing light.
@@ -276,16 +342,46 @@ sealed class NightScreen : Form
         if (session.OutputVersion != outputVersion)
         {
             outputVersion = session.OutputVersion;
-            info.ShowOutput(session.Output);
+            info.ShowOutput([.. session.Output]);
             editor.MarkLine(session.ErrorLine ?? 0);
         }
-        if (session.HintsShown != hintsShown)
+        bool offered = session.Clock.SweetPending;
+        if (session.HintsShown != hintsShown || offered != hintsOffered)
         {
             hintsShown = session.HintsShown;
-            info.ShowHints(night.Hints, hintsShown);
+            hintsOffered = offered;
+            info.ShowHints(night.Hints, hintsShown, session.HintAvailable, session.HintCost);
+        }
+        if (session.ReviewVersion != reviewVersion)
+        {
+            reviewVersion = session.ReviewVersion;
+            info.ShowReview(session.Review);
+            if (session.Review is not null) info.Choose(InfoPane.Tab.Review);
         }
         bool over = clockState is ClockState.Won or ClockState.Captured;
         editor.ReadOnly = over || paused;
+    }
+
+    // F1: the notebook page of a word of the code, or the notebook's index when no page has that word.
+    public void OpenNotebook(string word)
+    {
+        info.ShowNotebook(notebook, Notebook.For(notebook, word));
+        info.Choose(InfoPane.Tab.Notebook);
+    }
+
+    // CORRIGIR: the line the checker knows how to fix gets its fix, as one undoable edit.
+    public void ApplyFix(int line, string fixedText)
+    {
+        if (editor.ReadOnly) return;
+        int start = editor.GetFirstCharIndexFromLine(line - 1);
+        if (start < 0) return;
+        string text = editor.Text;
+        int end = text.IndexOf('\n', start);
+        if (end < 0) end = text.Length;
+        editor.Select(start, end - start);
+        editor.SelectedText = fixedText;
+        editor.Select(start + fixedText.Length, 0);
+        editor.Focus();
     }
 
     void GoToLine(int line)
@@ -329,11 +425,20 @@ sealed class NightScreen : Form
                 info.Choose(InfoPane.Tab.Output);
                 return true;
             case Keys.Control | Keys.D3:
-                // The first press shows the tab (and the first hint, if none is open); then each press opens
-                // the next layer.
-                if (info.Current != InfoPane.Tab.Hints) { info.Choose(InfoPane.Tab.Hints); if (session.HintsShown == 0) session.ShowHint(); }
+                // The first press shows the tab and the price; pressing again, there, takes the sweet.
+                if (info.Current != InfoPane.Tab.Hints) info.Choose(InfoPane.Tab.Hints);
                 else session.ShowHint();
                 UpdatePanels();
+                return true;
+            case Keys.Control | Keys.D4:
+                info.ShowNotebook(notebook, null);
+                info.Choose(InfoPane.Tab.Notebook);
+                return true;
+            case Keys.Control | Keys.D5:
+                info.Choose(InfoPane.Tab.Review);
+                return true;
+            case Keys.F1:
+                OpenNotebook(Notebook.WordAt(editor.Text, editor.SelectionStart));
                 return true;
             case Keys.Enter when state == ClockState.Intro:
                 session.Start();
@@ -344,6 +449,8 @@ sealed class NightScreen : Form
                 return true;
             case Keys.Enter when state == ClockState.Captured:
                 session.Restart();
+                scareAt = -10;
+                ShowPanels(true);
                 lampsVersion = -1;
                 info.Choose(InfoPane.Tab.Readme);
                 editor.Focus();

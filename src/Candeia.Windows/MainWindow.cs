@@ -36,6 +36,12 @@ sealed class MainWindow : Form
     protected override void OnKeyDown(KeyEventArgs e)
     {
         base.OnKeyDown(e);
+        if (e.KeyCode == Keys.S)
+        {
+            Options.SoftScares = !Options.SoftScares;
+            Invalidate();
+            return;
+        }
         if (e.KeyCode != Keys.Enter || next is null || !Visible) return;
         var screen = next();
         screen.FormClosed += (_, _) => Close();

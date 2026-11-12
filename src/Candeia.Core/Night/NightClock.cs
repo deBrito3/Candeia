@@ -142,9 +142,11 @@ public sealed class NightClock
         return events;
     }
 
+    // Taking a sweet: offered when the player is stuck, but it can be asked for at any time (decided in
+    // delivery 8: the hints are always within reach, at the sweet's price).
     public IReadOnlyList<ClockEvent> AcceptSweet()
     {
-        if (!SweetPending) return [];
+        if (!penalties.SweetAvailable || State is ClockState.Won or ClockState.Captured) return [];
         SweetPending = false;
         SweetsAccepted++;
         ResetOffer();

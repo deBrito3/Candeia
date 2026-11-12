@@ -45,12 +45,13 @@ public sealed class CSharpRuntime : ILanguageRuntime
     }
 
     // Checks the code, then compiles it with the probe's step counters and marks, for the runner.
-    public CompileResult CompileForRun(string source, CheckOptions options)
+    // With countLines, the probe also counts the runs of each line (for the post-night review).
+    public CompileResult CompileForRun(string source, CheckOptions options, bool countLines = false)
     {
         var watch = Stopwatch.StartNew();
         var (compilation, errors) = Analyze(source, options);
         if (errors.Count > 0) return new(errors, null, null, watch.Elapsed);
-        return EmitInstrumented(compilation.SyntaxTrees.Last(), options, watch);
+        return EmitInstrumented(compilation.SyntaxTrees.Last(), options, watch, countLines);
     }
 
     // Skips the language restrictions and the API allow-list. Only the security suite uses it, to prove
@@ -71,11 +72,11 @@ public sealed class CSharpRuntime : ILanguageRuntime
     // pay the compiler's start-up cost.
     public void Warm() => CompileForRun("public static class Warm { public static int Two(int x) { if (x > 0) return x + 1; return 2; } }", new());
 
-    static CompileResult EmitInstrumented(SyntaxTree player, CheckOptions options, Stopwatch watch)
+    static CompileResult EmitInstrumented(SyntaxTree player, CheckOptions options, Stopwatch watch, bool countLines = false)
     {
-        var instrumented = StepInstrumenter.Instrument(player);
+        var instrumented = StepInstrumenter.Instrument(player, countLines);
         var tree = CSharpSyntaxTree.ParseText(SourceText.From(instrumented.Source, Encoding.UTF8), ParseOptions, PlayerFileName);
-        var probe = CSharpSyntaxTree.ParseText(SourceText.From(Probe.Source(instrumented.Methods), Encoding.UTF8), ParseOptions, "Probe.cs");
+        var probe = CSharpSyntaxTree.ParseText(SourceText.From(Probe.Source(instrumented.Methods, countLines ? instrumented.Lines : 0), Encoding.UTF8), ParseOptions, "Probe.cs");
         var compilation = CSharpCompilation.Create("PlayerCode", [Usings(options), probe, tree], References, CompilationOptions(options));
         return Emit(compilation, watch, instrumented.Methods);
     }

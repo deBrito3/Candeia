@@ -11,19 +11,23 @@ namespace Candeia.Languages.CSharp;
 //     block, so an endless loop or call chain runs out of steps instead of freezing the night;
 //   - a mark before every if, switch, ?:, for, foreach, while and do, so a night can require that a
 //     construction really ran;
-//   - a call count per method the player declared.
+//   - a call count per method the player declared;
+//   - with countLines, a count before every statement, by line, for the post-night review.
 // The calls are inserted as text without line breaks, so every line keeps its number and errors still
 // point at the player's own lines.
 static class StepInstrumenter
 {
-    public sealed record Result(string Source, IReadOnlyList<string> Methods);
+    public sealed record Result(string Source, IReadOnlyList<string> Methods, int Lines);
 
-    public static Result Instrument(SyntaxTree tree)
+    public static Result Instrument(SyntaxTree tree, bool countLines = false)
     {
         var edits = new Edits();
         var methods = new List<string>();
+        var text = tree.GetText();
         foreach (var node in tree.GetRoot().DescendantNodes())
         {
+            if (countLines && node is StatementSyntax counted and not BlockSyntax and not LocalFunctionStatementSyntax and not EmptyStatementSyntax)
+                CountLine(edits, counted, text.Lines.GetLineFromPosition(counted.SpanStart).LineNumber + 1);
             switch (node)
             {
                 case MethodDeclarationSyntax method:
@@ -61,7 +65,20 @@ static class StepInstrumenter
                     break;
             }
         }
-        return new(edits.Apply(tree.GetText()), methods);
+        return new(edits.Apply(text), methods, text.Lines.Count);
+    }
+
+    // A statement in a block or a switch section gets its count in front; one standing alone (the body of
+    // an if or an else) also gets braces, so the count does not become the body in its place.
+    static void CountLine(Edits edits, StatementSyntax statement, int line)
+    {
+        string count = $"{Probe.Call}Line({line});";
+        if (statement.Parent is BlockSyntax or SwitchSectionSyntax) edits.Open(statement.SpanStart, count);
+        else
+        {
+            edits.Open(statement.SpanStart, "{" + count);
+            edits.Close(statement.Span.End, "}");
+        }
     }
 
     static readonly string Step = $"{Probe.Call}Step();";

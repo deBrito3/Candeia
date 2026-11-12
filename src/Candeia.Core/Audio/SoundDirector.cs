@@ -44,10 +44,26 @@ public sealed class SoundDirector
     IReadOnlyList<LampState> lamps = [];
     bool wasBusy, won;
 
+    readonly double[] channelVolumes;
+
     public SoundDirector(Mixer mixer, SoundBank bank)
     {
         this.mixer = mixer;
         this.bank = bank;
+        channelVolumes = Enum.GetValues<Channel>().Select(mixer.ChannelVolume).ToArray();
+    }
+
+    // Soft scares: the capture is quieter and nothing strikes at full volume.
+    public bool Soft { get; set; }
+
+    // A second or two of complete silence, as before every scare; then everything comes back.
+    public void Hush(double now, double seconds)
+    {
+        foreach (var channel in Enum.GetValues<Channel>()) mixer.SetChannel(channel, channelVolumes[(int)channel] * 0.04, 0.12);
+        later.Add((now + seconds, () =>
+        {
+            foreach (var channel in Enum.GetValues<Channel>()) mixer.SetChannel(channel, channelVolumes[(int)channel], 0.4);
+        }));
     }
 
     public IReadOnlyList<Caption> Captions(double now)
@@ -76,7 +92,9 @@ public sealed class SoundDirector
     {
         mixer.StopAll(0.3);
         captions.Clear();
+        // A silence cut short (the night closed during a scare) gives the channels back.
         later.Clear();
+        foreach (var channel in Enum.GetValues<Channel>()) mixer.SetChannel(channel, channelVolumes[(int)channel], 0.3);
         breath = 0;
         scoreWaiting = false;
     }
@@ -207,9 +225,12 @@ public sealed class SoundDirector
                 var (glimpsePan, _) = Places[(int)(cue.Where ?? cue.Station)];
                 later.Add((now + 0.9, () => { mixer.Play(bank["thunder"], Channel.House, 1, glimpsePan * 0.5); Say("trovão", "thunder", glimpsePan * 0.5, now + 0.9); }));
                 break;
+            // The last candle: silence, then he is beside you, then the sack.
             case CueKind.Captured:
-                Play("sack", Places[(int)Station.Beside].Pan, 0, 1.2);
-                Say("um saco se fecha", "a sack closes", Places[(int)Station.Beside].Pan, now);
+                double beside = Places[(int)Station.Beside].Pan;
+                Hush(now, 1.5);
+                later.Add((now + 1.5, () => { Play("sting", beside, 0, Soft ? 0.35 : 1.0); Say("ele está ao seu lado", "he is beside you", beside, now + 1.5); }));
+                later.Add((now + 1.8, () => { Play("sack", beside, 0, Soft ? 0.5 : 1.1); Say("um saco se fecha", "a sack closes", beside, now + 1.8); }));
                 break;
             case CueKind.Fled:
                 won = true;
@@ -232,9 +253,16 @@ public sealed class SoundDirector
                 mixer.Play(bank["surge"], Channel.System, 0.9);
                 Say("a energia oscila", "the power flickers", 0, now);
                 break;
+            // Time ran out with candles left: silence, he comes close, a match is struck, a candle goes out.
             case ClockEventKind.NearCapture:
-                mixer.Play(bank["candle-out"], Channel.House, 1, pan: 0.2);
-                Say("uma vela se apaga", "a candle goes out", 0.2, now);
+                Hush(now, 1.4);
+                later.Add((now + 1.4, () => { mixer.Play(bank["match"], Channel.House, Soft ? 0.5 : 1, pan: 0.1); Say("um fósforo é riscado", "a match is struck", 0.1, now + 1.4); }));
+                later.Add((now + 1.75, () => { mixer.Play(bank["candle-out"], Channel.House, 1, pan: 0.2); Say("uma vela se apaga", "a candle goes out", 0.2, now + 1.75); }));
+                break;
+            // He offers a sweet: a wrapper on the windowsill.
+            case ClockEventKind.SweetOffered:
+                Play("wrapper", Places[(int)Station.Window].Pan, 0.2, 0.9);
+                Say("papel de bala no parapeito", "a candy wrapper on the windowsill", Places[(int)Station.Window].Pan, now);
                 break;
             case ClockEventKind.Started:
                 won = false;

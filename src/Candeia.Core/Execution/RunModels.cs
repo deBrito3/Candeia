@@ -39,6 +39,9 @@ public sealed record RunResult(
     string? Detail,
     TimeSpan Elapsed)
 {
+    // How many times each line ran (index = line number), when the code was compiled to count lines.
+    public IReadOnlyList<long> Lines { get; init; } = [];
+
     public int Passed => Tests.Count(t => t.Passed);
     public bool AllPassed => Stop == RunStop.Completed && Tests.Count > 0 && Tests.All(t => t.Passed);
 }

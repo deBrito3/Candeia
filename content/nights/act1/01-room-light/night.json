@@ -5,6 +5,7 @@
   "type": "repair",
   "intro": true,
   "title": { "pt": "A luz do quarto", "en": "The bedroom light" },
+  "learned": { "pt": "Uma variável guarda um valor com um tipo: int para inteiros, double para decimais, bool para sim ou não, string para texto. O return entrega a resposta à casa.", "en": "A variable keeps a value with a type: int for whole numbers, double for decimals, bool for yes or no, string for text. return hands the answer to the house." },
   "class": "RoomLight",
   "methods": [
     { "name": "Watts", "returns": "int", "params": [] },

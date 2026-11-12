@@ -1,0 +1,90 @@
+// The notebook's pages, in the order of its index. Keywords are the words of the code that open a page
+// with F1 (one page per keyword). Each page is <id>.pt.md and <id>.en.md.
+{
+  "pages": [
+    {
+      "id": "variables",
+      "act": 1,
+      "keywords": [
+        "var",
+        "="
+      ]
+    },
+    {
+      "id": "int",
+      "act": 1,
+      "keywords": [
+        "int",
+        "long"
+      ]
+    },
+    {
+      "id": "double",
+      "act": 1,
+      "keywords": [
+        "double",
+        "float",
+        "decimal"
+      ]
+    },
+    {
+      "id": "bool",
+      "act": 1,
+      "keywords": [
+        "bool",
+        "true",
+        "false"
+      ]
+    },
+    {
+      "id": "string",
+      "act": 1,
+      "keywords": [
+        "string",
+        "char",
+        "\""
+      ]
+    },
+    {
+      "id": "return",
+      "act": 1,
+      "keywords": [
+        "return",
+        "void",
+        "public",
+        "static",
+        "class"
+      ]
+    },
+    {
+      "id": "operations",
+      "act": 1,
+      "keywords": [
+        "+",
+        "-",
+        "*"
+      ]
+    },
+    {
+      "id": "division",
+      "act": 1,
+      "keywords": [
+        "/",
+        "%"
+      ]
+    },
+    {
+      "id": "conversions",
+      "act": 1,
+      "keywords": [
+        "Math",
+        "Round",
+        "Floor",
+        "Ceiling",
+        "Abs",
+        "Max",
+        "Min"
+      ]
+    }
+  ]
+}

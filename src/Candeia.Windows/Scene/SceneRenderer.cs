@@ -10,8 +10,11 @@ public enum SceneQuality { High, Reduced }
 // Visible is false where the act only lets him be heard; Apparition is a scripted glimpse of him somewhere
 // else (a silhouette in the yard). HouseLight (0 to 1) is the room's bulb, lit by the lamps; CandlesOut
 // counts the candles that went out; Flash (0 to 1) is a lightning flash.
+// For the scares: Lit (0 to 1) lights him up, the only time he is seen whole; Match (0 to 1) is a match
+// struck on the desk; Sack (0 to 1) is the sack closing over the screen; Dark (0 to 1) darkens everything.
 readonly record struct SceneState(double Seconds, Station Station, double SinceArrival, SceneQuality Quality,
-    bool Visible = true, float HouseLight = 0, int CandlesOut = 0, float Flash = 0, Station? Apparition = null);
+    bool Visible = true, float HouseLight = 0, int CandlesOut = 0, float Flash = 0, Station? Apparition = null,
+    float Lit = 0, float Match = 0, float Sack = 0, float Dark = 0, bool Candy = false, bool Panels = true);
 
 // How long each layer of the last frame took, in milliseconds.
 sealed class SceneTimings
@@ -30,7 +33,7 @@ sealed class SceneTimings
 sealed class SceneRenderer : IDisposable
 {
     readonly float[] flicker = new float[Candles.All.Length];
-    readonly PointLight[] points = new PointLight[Candles.All.Length + 3];
+    readonly PointLight[] points = new PointLight[Candles.All.Length + 5];
     readonly List<Station> drawn = new(2);
     readonly AreaLight[] areas = new AreaLight[2];
     readonly Random grainOffsets = new(5);
@@ -106,7 +109,7 @@ sealed class SceneRenderer : IDisposable
         drawn.Clear();
         if (state.Visible) drawn.Add(state.Station);
         if (state.Apparition is { } glimpse && !drawn.Contains(glimpse)) drawn.Add(glimpse);
-        lastDirty = Dirty(state.Visible ? state.Station : Station.Street);
+        lastDirty = drawn.Concat(state.Candy ? [Station.Window] : []).DefaultIfEmpty(Station.Street).SelectMany(Dirty).Distinct().ToArray();
         long t1 = Stopwatch.GetTimestamp();
 
         // Everything that moves stays inside the dirty rectangles (Dirty lists where each station draws),
@@ -127,7 +130,9 @@ sealed class SceneRenderer : IDisposable
         if (state.Station != Station.Window) Rain.DrawStreaks(g, state.Seconds, high ? 90 : 30);
         Rain.DrawDrops(g, state.Seconds, high ? 9 : 4);
         g.Restore(saved);
-        if (state.Visible) CreaturePainter.DrawInside(g, state.Station, pose);
+        foreach (var station in drawn) if (station >= Station.Window) CreaturePainter.DrawInside(g, station, pose);
+        // His sweet, left on the windowsill while the offer stands.
+        if (state.Candy && !drawn.Contains(Station.Window)) CreaturePainter.DrawCandy(g, new PointF(300, 792), -12, 1);
         long t2 = Stopwatch.GetTimestamp();
 
         float tension = Tension(state.Station);
@@ -137,13 +142,14 @@ sealed class SceneRenderer : IDisposable
         long t3 = Stopwatch.GetTimestamp();
 
         int grainX = grainOffsets.Next(0, 32) * Lighting.Cell, grainY = grainOffsets.Next(0, 256);
-        lighting.Apply(stage.Pixels, frame.Pixels, editor, grainX, grainY, withGrain: high);
+        // Without the panels (the capture takes the whole screen), the light pass covers the monitor too.
+        lighting.Apply(stage.Pixels, frame.Pixels, state.Panels ? editor : Rectangle.Empty, grainX, grainY, withGrain: high);
         long t4 = Stopwatch.GetTimestamp();
         g = graphics;
 
         // The monitor glass around the editor goes back to its own dark colour: the light pass works in
         // whole cells and lit part of it.
-        foreach (var (start, length) in screenRing) Array.Copy(room.Pixels, start, frame.Pixels, start, length);
+        if (state.Panels) foreach (var (start, length) in screenRing) Array.Copy(room.Pixels, start, frame.Pixels, start, length);
         g.ResetTransform();
         g.InterpolationMode = InterpolationMode.NearestNeighbor;
         g.PixelOffsetMode = PixelOffsetMode.Half;
@@ -155,18 +161,26 @@ sealed class SceneRenderer : IDisposable
         for (int i = 0; i < lit; i++) Candles.DrawFlame(g, i, flicker[i], state.Seconds, dim);
         g.FillEllipse(ledBrush, SceneLayout.Led.X - 3.5f, SceneLayout.Led.Y - 3.5f, 7, 7);
         if (state.HouseLight > 0.01f) DrawBulb(g, state.HouseLight);
+        if (state.Sack > 0 || state.Dark > 0) Cover(g, state.Sack, state.Dark);
+        if (state.Match > 0.03f)
+        {
+            g.Transform = transform;
+            DrawMatch(g, state.Match, state.Seconds);
+        }
         // His eyes, in the same clip as the figure: the glass, or the door's gap, where only one eye shows
-        // past the edge of the leaf.
+        // past the edge of the leaf. Once the sack is over them, they are gone.
+        float sackEdge = state.Sack > 0 ? state.Sack * Layout.Size.Height * 1.15f - 30 * Layout.Scale : float.MinValue;
         if (!CreaturePainter.Blinking(state.Seconds))
             foreach (var station in drawn)
             {
+                var eyes = CreaturePainter.Eyes(station, pose);
+                if (Layout.ToPixels(eyes.Left).Y < sackEdge) continue;
                 var clip = g.Save();
                 g.Transform = transform;
                 if (station <= Station.Window) g.SetClip(lowerGlass);
                 else if (station == Station.Door) g.SetClip(SceneLayout.DoorGap);
                 g.ResetTransform();
                 g.PixelOffsetMode = PixelOffsetMode.Half;
-                var eyes = CreaturePainter.Eyes(station, pose);
                 var sprite = EyeSprite(station);
                 DrawSprite(g, sprite, eyes.Left);
                 DrawSprite(g, sprite, eyes.Right);
@@ -182,6 +196,47 @@ sealed class SceneRenderer : IDisposable
     }
 
     static readonly SolidBrush ledBrush = new(Color.FromArgb(255, 186, 80));
+
+    // The match struck on the desk, in front of the keyboard: the stick, its head and a flame that flares
+    // and then burns down.
+    static void DrawMatch(Graphics g, float level, double seconds)
+    {
+        const float x = 1180, y = 960;
+        float height = 26 + 46 * level;
+        float sway = 2.5f * (float)Math.Sin(seconds * 13);
+        StreetPainter.Glow(g, new PointF(x, y - height * 0.4f), 60 + 150 * level, 60 + 150 * level, Color.FromArgb((int)(190 * level), 255, 214, 150));
+        using (var stick = new Pen(Color.FromArgb(255, 170, 128, 80), 4f)) g.DrawLine(stick, x + 34, y + 38, x, y);
+        using (var head = new SolidBrush(Color.FromArgb(255, 70, 26, 18))) g.FillEllipse(head, x - 5, y - 5, 10, 10);
+        using var path = new GraphicsPath();
+        path.AddBezier(new PointF(x, y + 2), new PointF(x - 11, y - 3), new PointF(x - 8, y - height * 0.55f), new PointF(x + sway, y - height));
+        path.AddBezier(new PointF(x + sway, y - height), new PointF(x + 8, y - height * 0.55f), new PointF(x + 11, y - 3), new PointF(x, y + 2));
+        path.CloseFigure();
+        using var body = new PathGradientBrush(path)
+        {
+            CenterPoint = new PointF(x, y - height * 0.3f),
+            CenterColor = Color.FromArgb((int)(255 * Math.Min(1, level * 2)), 255, 252, 230),
+            SurroundColors = [Color.FromArgb((int)(90 * Math.Min(1, level * 2)), 255, 150, 40)],
+        };
+        g.FillPath(body, path);
+    }
+
+    // The sack closing over the screen from the top, its edge uneven, the weave showing; and a darkening.
+    void Cover(Graphics g, float sack, float dark)
+    {
+        g.ResetTransform();
+        int width = Layout.Size.Width, height = Layout.Size.Height;
+        if (sack > 0)
+        {
+            float bottom = sack * height * 1.15f;
+            var edge = new List<PointF> { new(0, -10), new(width, -10) };
+            for (int x = width; x >= 0; x -= 40) edge.Add(new PointF(x, bottom + 26 * Layout.Scale * (float)Math.Sin(x / (130.0 * Layout.Scale) + sack * 3)));
+            using (var cloth = new SolidBrush(Color.FromArgb(255, 26, 20, 13))) g.FillPolygon(cloth, edge.ToArray());
+            using var weave = new Pen(Color.FromArgb(255, 14, 11, 7), Math.Max(1, 2 * Layout.Scale));
+            for (float y = 6 * Layout.Scale; y < bottom - 10; y += 9 * Layout.Scale) g.DrawLine(weave, 0, y, width, y + 3 * Layout.Scale);
+        }
+        if (dark > 0)
+            using (var shade = new SolidBrush(Color.FromArgb((int)(255 * Math.Clamp(dark, 0, 1)), 0, 0, 0))) g.FillRectangle(shade, 0, 0, width, height);
+    }
 
     // The room's bulb, lit as the lamps of the night light: a glowing glass and its halo.
     static void DrawBulb(Graphics g, float level)
@@ -288,15 +343,21 @@ sealed class SceneRenderer : IDisposable
             var at = Layout.ToPixels(Candles.LightAt(i, f));
             points[i] = new PointLight(at.X, at.Y, c.Reach * scale, 120 * scale, 1.0f * strength, 0.62f * strength, 0.30f * strength);
         }
+        int n = Candles.All.Length;
         var screen = Layout.ToPixels(new PointF(960, 462));
-        points[^3] = new PointLight(screen.X, screen.Y, 1200 * scale, 560 * scale, 0.34f, 0.235f, 0.11f);
+        points[n] = new PointLight(screen.X, screen.Y, 1200 * scale, 560 * scale, 0.34f, 0.235f, 0.11f);
+        // A match struck on the desk, and the light on him when he is seen whole.
+        var match = Layout.ToPixels(new PointF(1180, 960));
+        points[n + 3] = new PointLight(match.X, match.Y, 1100 * scale, 220 * scale, 1.6f * state.Match, 1.1f * state.Match, 0.55f * state.Match);
+        var face = Layout.ToPixels(new PointF(1760, 520));
+        points[n + 4] = new PointLight(face.X, face.Y, 1000 * scale, 300 * scale, 1.3f * state.Lit, 1.25f * state.Lit, 1.1f * state.Lit);
         // The room's bulb fills the whole room as the lamps light.
         var bulb = Layout.ToPixels(SceneLayout.Bulb);
         float house = 1.3f * state.HouseLight;
-        points[^2] = new PointLight(bulb.X, bulb.Y, 1700 * scale, 420 * scale, 1.0f * house, 0.86f * house, 0.62f * house);
+        points[n + 1] = new PointLight(bulb.X, bulb.Y, 1700 * scale, 420 * scale, 1.0f * house, 0.86f * house, 0.62f * house);
         float moon = 1 - 0.3f * tension;
         var spill = Layout.ToPixels(new PointF(250, 520));
-        points[^1] = new PointLight(spill.X, spill.Y, 460 * scale, 220 * scale, 0.10f * moon, 0.13f * moon, 0.20f * moon);
+        points[n + 2] = new PointLight(spill.X, spill.Y, 460 * scale, 220 * scale, 0.10f * moon, 0.13f * moon, 0.20f * moon);
         // The outside through the window, and the moonlit corridor through the door. Kept a cell inside
         // the openings, so the frames around them stay in the room's light.
         float outside = 1 - 0.12f * tension;

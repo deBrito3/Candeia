@@ -11,6 +11,7 @@ static class NightLoaderTests
         {
           "id": "test-night", "act": 1, "order": 3, "type": "repair",
           "title": { "pt": "Teste", "en": "Test" },
+          "learned": { "pt": "Um if decide.", "en": "An if decides." },
           "class": "Yard",
           "methods": [ { "name": "ShouldLightYard", "returns": "bool", "params": [ { "name": "light", "type": "int" }, { "name": "hour", "type": "int" } ] } ],
           "concepts": ["if"],

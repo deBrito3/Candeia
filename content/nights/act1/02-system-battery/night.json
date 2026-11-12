@@ -4,6 +4,7 @@
   "order": 2,
   "type": "repair",
   "title": { "pt": "A bateria do sistema", "en": "The system battery" },
+  "learned": { "pt": "Entre dois int, a divisão corta as casas decimais. Multiplicar antes, converter para double e usar o resto (%) resolvem as contas da casa.", "en": "Between two ints, division cuts the decimals off. Multiplying first, casting to double and using the remainder (%) fix the house's arithmetic." },
   "class": "Battery",
   "methods": [
     { "name": "Percent", "returns": "int", "params": [ { "name": "charge", "type": "int" }, { "name": "capacity", "type": "int" } ] },

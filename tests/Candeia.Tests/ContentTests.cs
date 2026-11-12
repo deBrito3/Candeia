@@ -61,12 +61,19 @@ static class ContentTests
                 }
             }
             if (night.Hints.Count != 3) issues.Add("three hint layers are needed");
+            if (night.Learned.Pt.Length < 20 || night.Learned.En.Length < 20) issues.Add("the learned line needs a sentence in both languages");
             problems += issues.Count;
             output.WriteLine($"{night.Id} | {night.Title.Pt} / {night.Title.En} | {night.Tests.Count} | {night.HiddenTests} | {starterLamps} | {solutionLamps} | " +
                 (issues.Count == 0 ? "OK" : "FALHOU: " + string.Join("; ", issues)));
         }
+        // The notebook: every page in both languages, and each keyword opening one page only.
+        var notebook = Notebook.Load();
         output.WriteLine();
-        output.WriteLine(problems == 0 ? $"PASS: {loaded.Count} nights." : $"FAIL: {problems} problem(s).");
+        output.WriteLine($"Caderno: {notebook.Pages.Count} páginas ({string.Join(", ", notebook.Pages.Select(p => p.Title.Pt))})");
+        foreach (var error in notebook.Errors) output.WriteLine("  FALHOU: " + error);
+        problems += notebook.Errors.Count + (notebook.Pages.Count == 0 ? 1 : 0);
+        output.WriteLine();
+        output.WriteLine(problems == 0 ? $"PASS: {loaded.Count} nights, {notebook.Pages.Count} notebook pages." : $"FAIL: {problems} problem(s).");
         return problems == 0 ? 0 : 1;
     }
 }

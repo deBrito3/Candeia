@@ -101,10 +101,11 @@ public sealed class RunnerHost : IDisposable
             var results = new TestResult?[request.Tests.Count];
             var marks = new Dictionary<string, long>();
             var calls = new Dictionary<string, long>();
+            long[] lineCounts = [];
             RunResult Result(RunStop stop, string? detail)
             {
                 var tests = results.Select((r, i) => r ?? new TestResult(i, false, null, TestValues.Format(request.Tests[i].Expected), 0, "", null)).ToList();
-                return new(tests, marks, calls, stop, detail, watch.Elapsed);
+                return new(tests, marks, calls, stop, detail, watch.Elapsed) { Lines = lineCounts };
             }
 
             // 1. The process says it is ready.
@@ -158,6 +159,7 @@ public sealed class RunnerHost : IDisposable
                 {
                     foreach (var (name, count) in reply.Marks ?? []) marks[Cap(name, 64)] = count;
                     foreach (var (name, count) in (reply.Calls ?? []).Take(512)) calls[Cap(name, 128)] = count;
+                    lineCounts = (reply.Lines ?? []).Take(5000).Select(n => Math.Max(0, n)).ToArray();
                     var stop = Enum.TryParse<RunStop>(reply.Stop, out var parsed) ? parsed : RunStop.RunnerFailure;
                     if (stop == RunStop.Completed && expected != results.Length) return Result(RunStop.RunnerFailure, "the runner skipped tests");
                     return Result(stop, reply.Detail is null ? null : Cap(reply.Detail, 500));
