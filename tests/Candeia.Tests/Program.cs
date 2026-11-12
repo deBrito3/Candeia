@@ -8,6 +8,7 @@ using Candeia.Tests;
 //   --check <file.cs>     checks a C# file as a night would; add --en for English, --linq to allow LINQ
 //   --bench               compile and run times
 //   --simulate            scripted nights through the real clock and creature, as a timeline
+//   --sounds <folder>     every sound, and a scripted night mixed by the real director, as WAV files
 //   --runner              the isolated runner itself, started by the suites (never by hand)
 if (args is [Runner.Argument]) return Runner.Main(Console.OpenStandardInput(), Console.OpenStandardOutput());
 
@@ -23,6 +24,7 @@ if (args.Length == 0 || args.Contains("--self-test"))
     runner.Suite("Night format", NightLoaderTests.Run);
     runner.Suite("Night rules", NightRulesTests.Run);
     runner.Suite("Editor tokens", TokenizerTests.Run);
+    runner.Suite("Audio", AudioTests.Run);
     if (OperatingSystem.IsWindows()) runner.Suite("Isolated runner", RunnerTests.Run);
     if (OperatingSystem.IsWindows()) runner.Suite("Night session", NightSessionTests.Run);
     return runner.Report(Console.Out);
@@ -50,6 +52,9 @@ if (check >= 0)
 if (args.Contains("--bench")) return Tools.Bench(Console.Out);
 
 if (args.Contains("--simulate")) return NightSimulation.Run(Console.Out);
+
+int sounds = Array.IndexOf(args, "--sounds");
+if (sounds >= 0) return SoundFiles.Run(sounds + 1 < args.Length ? args[sounds + 1] : "test-artifacts/som", Console.Out);
 
 if (args.Contains("--isolation-probe") && OperatingSystem.IsWindows()) return IsolationProbe.Run(Console.Out);
 

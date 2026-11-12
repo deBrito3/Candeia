@@ -45,6 +45,7 @@ sealed class SceneRenderer : IDisposable
     Bitmap glow = null!, glowDim = null!, ledGlow = null!;
     (int Start, int Length)[] screenRing = [];
     Rectangle editor;
+    Font? captionFont;
 
     public SceneRenderer(Size size) => Build(size);
 
@@ -71,6 +72,8 @@ sealed class SceneRenderer : IDisposable
         lastDirty = [];
         eyeSprite?.Dispose();
         eyeSprite = null;
+        captionFont?.Dispose();
+        captionFont = null;
         stageGraphics = Graphics.FromImage(stage.Bitmap);
         graphics = Graphics.FromImage(frame.Bitmap);
         lighting = new Lighting(frame.Stride, frame.Height);
@@ -306,6 +309,31 @@ sealed class SceneRenderer : IDisposable
         lighting.Build(points, areas, 0.028f * ambient + glare, 0.032f * ambient + glare, 0.048f * ambient + glare * 1.2f, (0.55f + 0.3f * tension) * (1 - 0.5f * state.HouseLight));
     }
 
+    // The captions of the important sounds, at the bottom of the screen over the keyboard, newest last; each
+    // fades out in its last half second.
+    public void DrawCaptions(IReadOnlyList<Candeia.Audio.Caption> captions, double now)
+    {
+        if (captions.Count == 0) return;
+        var g = graphics;
+        g.ResetTransform();
+        captionFont ??= new Font("Consolas", Math.Max(12, 17 * Layout.Scale), FontStyle.Bold, GraphicsUnit.Pixel);
+        var font = captionFont;
+        float y = Layout.ToPixels(new PointF(0, 1062)).Y, centre = Layout.Size.Width / 2f;
+        for (int i = captions.Count - 1; i >= 0; i--)
+        {
+            var caption = captions[i];
+            double left = caption.Until - now;
+            int alpha = (int)(255 * Math.Clamp(left / 0.5, 0, 1));
+            string text = caption.Text(english: false);
+            var size = g.MeasureString(text, font);
+            y -= size.Height + 6 * Layout.Scale;
+            var box = new RectangleF(centre - size.Width / 2 - 10 * Layout.Scale, y - 3 * Layout.Scale, size.Width + 20 * Layout.Scale, size.Height + 6 * Layout.Scale);
+            using (var back = new SolidBrush(Color.FromArgb(alpha * 190 / 255, 0, 0, 0))) g.FillRectangle(back, box);
+            using var ink = new SolidBrush(Color.FromArgb(alpha, 255, 224, 170));
+            g.DrawString(text, font, ink, centre - size.Width / 2, y);
+        }
+    }
+
     // Writes a line of text in the top-left corner of the frame (the measurements panel).
     public void DrawOverlay(string text)
     {
@@ -335,6 +363,7 @@ sealed class SceneRenderer : IDisposable
         glow?.Dispose();
         glowDim?.Dispose();
         eyeSprite?.Dispose();
+        captionFont?.Dispose();
         ledGlow?.Dispose();
     }
 

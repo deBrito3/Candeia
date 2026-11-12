@@ -2,7 +2,7 @@
 
 Jogo de terror e programação para Windows. Você volta ao casarão da infância, no Recife, e sobrevive às noites escrevendo C# que compila e roda de verdade, enquanto o Papa-Figo se aproxima. Arte vetorial desenhada pelo próprio jogo e sons sintetizados em código, sem assets externos.
 
-**Estado:** entrega 6 de 11. A noite 1 é jogável: o CANDEIA no monitor (barra de título com a presença, lâmpadas, editor de C# com cores, números de linha e autocompletar, LEIA-ME, saída e dicas), o código rodando no executor isolado, o relógio elástico, as velas e o Papa-Figo nas paradas. Ainda sem som, caderno, o preço do doce e progresso salvo.
+**Estado:** entrega 7 de 11. A noite 1 é jogável, com som: o CANDEIA no monitor (presença, lâmpadas, editor de C#, LEIA-ME, saída e dicas), o código rodando no executor isolado, o relógio elástico, as velas, o Papa-Figo nas paradas e a casa, o sistema e ele soando em estéreo, com legendas e uma trilha de terror baixa. Ainda sem caderno, o preço do doce e progresso salvo.
 
 ## Requisitos
 
@@ -21,6 +21,7 @@ Jogo de terror e programação para Windows. Você volta ao casarão da infânci
 ./scripts/content-test.ps1                        # confere cada noite com o código inicial e a solução de referência
 ./scripts/simulate.ps1                            # joga noites roteirizadas pelas regras e mostra a linha do tempo
 ./scripts/ui-test.ps1                             # confere o editor e as teclas da noite em janelas de verdade
+./scripts/sounds.ps1                              # grava cada som e uma noite de 40 s em WAV, em test-artifacts/som
 ./scripts/night-bench.ps1                          # joga a noite 1 sozinha: imagens de cada momento e medições
 ./scripts/scene.ps1                               # abre o protótipo de desenho (F2 troca a parada, F3 mostra as medições)
 ./scripts/scene-bench.ps1                         # mede o desenho em 1920x1080 por uns 2 minutos e salva o relatório
@@ -89,6 +90,15 @@ O CANDEIA roda no vidro do monitor: a barra de título com a noite e o sensor de
 | F11 | Tela cheia |
 
 O tempo só começa a correr quando você fecha o LEIA-ME com Enter ou digita a primeira tecla. A sequência da noite fica no `Candeia.Core`, na classe `NightSession`, e as suítes a jogam com o executor de verdade.
+
+## Som
+
+Todo som é sintetizado pelo próprio jogo, sem arquivos de áudio, e tocado pela biblioteca waveOut do Windows em 44,1 kHz estéreo, com cerca de 100 ms de latência.
+
+- `Synth` e `SoundBank` (no Core) fazem cada som uma vez: a chuva baixa no telhado, os grilos e a casa estalando; as teclas, o relé do F5, as lâmpadas, o acerto e o erro; e ele: bengala nas pedras, portão, "psiu", passos, papel de bala, respiração, tosse, porta, trovão, vela apagando e o saco.
+- `Score` compõe a trilha, original e baixa: acordes graves em ré menor harmônico sobre um bordão em ré, com notas soltas de caixinha de música; e uma camada dissonante (trítono, um arco agudo, um pulso abafado) que sobe quando ele se aproxima.
+- `Mixer` soma as vozes em seis canais (casa, sistema, criatura, rádio, interface e trilha), cada voz com volume, posição, velocidade e distância, e um limitador no fim.
+- `SoundDirector` transforma a noite em som: a janela soa à esquerda e a porta à direita, cada chegada dele é anunciada 2 s antes, os grilos se calam quando o código não compila, a camada tensa da trilha sobe quando ele se aproxima, e da porta para dentro ele respira. As legendas dos sons importantes aparecem na margem de baixo, com a direção, como `← [portão rangendo]`.
 
 ## Desenho
 

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Candeia.Audio;
 using Candeia.Challenges;
 using Candeia.Creature;
 using Candeia.Execution;
@@ -39,6 +40,10 @@ sealed class NightScreen : Form
     double last, arrivedAt = -10, apparitionUntil, flashAt = -10, houseLight;
     Station apparition;
     bool paused;
+    readonly Mixer mixer = new();
+    readonly SoundBank bank = new();
+    readonly SoundDirector sound;
+    readonly WaveOutPlayer player;
 
     public NightScreen(NightDefinition first, IEnumerable<NightDefinition> all, bool benchmark = false)
     {
@@ -57,7 +62,15 @@ sealed class NightScreen : Form
         info = new InfoPane(style);
         Controls.AddRange([title, lampStrip, gutter, editor, info]);
         completion = new CodeCompletion(this, editor);
-        editor.KeyPress += (_, _) => { if (session.Clock.State == ClockState.Intro) session.Start(); };
+        sound = new SoundDirector(mixer, bank);
+        player = new WaveOutPlayer(mixer);
+        // The measurements and checks run with the sound mixed but muted.
+        if (benchmark) mixer.Master = 0;
+        editor.KeyPress += (_, _) =>
+        {
+            if (session.Clock.State == ClockState.Intro) session.Start();
+            if (!editor.ReadOnly) sound.Key();
+        };
         info.LineChosen += GoToLine;
         if (benchmark)
         {
@@ -80,6 +93,7 @@ sealed class NightScreen : Form
         {
             try { runtime.Warm(); host.Warm(); }
             catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or IOException) { }
+            bank.Prepare();
         });
     }
 
@@ -102,6 +116,7 @@ sealed class NightScreen : Form
         arrivedAt = -10;
         apparitionUntil = 0;
         paused = false;
+        sound.Begin();
         UpdatePanels();
         editor.Focus();
     }
@@ -127,6 +142,7 @@ sealed class NightScreen : Form
         base.OnShown(e);
         Rebuild();
         last = Seconds;
+        player.Start();
         loop.Start();
         editor.Focus();
     }
@@ -177,6 +193,7 @@ sealed class NightScreen : Form
         double now = Seconds, dt = Math.Clamp(now - last, 0, 0.25);
         last = now;
         var tick = session.Tick(dt);
+        sound.Update(now, tick, session.Director.State, session.Lamps, session.Busy);
         foreach (var cue in tick.Cues) React(cue, now);
         UpdatePanels();
         title.Animate(now);
@@ -191,6 +208,7 @@ sealed class NightScreen : Form
             Flash: Flash(now),
             Apparition: now < apparitionUntil ? apparition : null);
         renderer.Render(state, timings);
+        renderer.DrawCaptions(sound.Captions(now), now);
         long start = Stopwatch.GetTimestamp();
         IntPtr hdc = Native.GetDC(Handle);
         try { renderer.Present(hdc); }
@@ -393,6 +411,7 @@ sealed class NightScreen : Form
             completion.Dispose();
             renderer?.Dispose();
             host.Dispose();
+            player.Dispose();
             style.Dispose();
         }
         base.Dispose(disposing);
