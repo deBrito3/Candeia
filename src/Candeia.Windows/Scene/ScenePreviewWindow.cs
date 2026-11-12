@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Candeia.Night;
+using Candeia.Panels;
 
 namespace Candeia.Scene;
 
@@ -37,17 +38,8 @@ sealed class ScenePreviewWindow : Form
         KeyPreview = true;
         SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.Opaque, true);
         SetStyle(ControlStyles.OptimizedDoubleBuffer, false);
-        editor = new CodeEditor
-        {
-            BorderStyle = BorderStyle.None,
-            BackColor = Palette.ScreenGlass,
-            ForeColor = Palette.Amber,
-            WordWrap = false,
-            DetectUrls = false,
-            ScrollBars = RichTextBoxScrollBars.None,
-            AcceptsTab = true,
-            Text = StarterCode(),
-        };
+        editor = new CodeEditor { ScrollBars = RichTextBoxScrollBars.None };
+        editor.Load(StarterCode());
         Controls.Add(editor);
 
         if (benchmark)
@@ -125,7 +117,7 @@ sealed class ScenePreviewWindow : Form
         if (WindowState == FormWindowState.Minimized || ClientSize.Width < 64 || ClientSize.Height < 64) return;
         if (renderer is null) renderer = new SceneRenderer(ClientSize);
         else renderer.Resize(ClientSize);
-        editor.Bounds = renderer.Layout.EditorBounds();
+        editor.Bounds = renderer.Layout.PanelBounds();
         var font = new Font("Consolas", 21 * renderer.Layout.Scale, GraphicsUnit.Pixel);
         editor.Font = font;
         editorFont?.Dispose();

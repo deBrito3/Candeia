@@ -135,7 +135,7 @@ static class SceneBench
             : $"FALHA: {different} de {fast.Length} pixels diferem entre o passo rápido e o simples.";
     }
 
-    static void Capture(Form window, string path)
+    internal static void Capture(Form window, string path)
     {
         using var image = new Bitmap(window.ClientSize.Width, window.ClientSize.Height, PixelFormat.Format32bppArgb);
         using (var g = Graphics.FromImage(image))

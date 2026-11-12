@@ -24,7 +24,7 @@ sealed class SceneLayout
     public Matrix Transform() => new(Scale, 0, 0, Scale, OffsetX, OffsetY);
     public PointF ToPixels(PointF p) => new(OffsetX + p.X * Scale, OffsetY + p.Y * Scale);
     public RectangleF ToPixels(RectangleF r) => new(OffsetX + r.X * Scale, OffsetY + r.Y * Scale, r.Width * Scale, r.Height * Scale);
-    public Rectangle EditorBounds() => Rectangle.Round(ToPixels(Editor));
+    public Rectangle PanelBounds() => Rectangle.Round(ToPixels(Panels));
 
     // Places, in design coordinates.
     public static readonly RectangleF WindowCasing = RectangleF.FromLTRB(60, 150, 440, 790);
@@ -45,7 +45,10 @@ sealed class SceneLayout
     public static readonly RectangleF Monitor = RectangleF.FromLTRB(470, 70, 1450, 905);
     public static readonly RectangleF Screen = RectangleF.FromLTRB(545, 135, 1375, 790);
     public const float ScreenRadius = 36;
-    public static readonly RectangleF Editor = RectangleF.FromLTRB(567, 157, 1353, 768);
+    // Where the CANDEIA system draws itself on the monitor glass: the scene leaves it alone.
+    public static readonly RectangleF Panels = RectangleF.FromLTRB(557, 147, 1363, 778);
+    // The dead bulb that hangs over the door: the room's own light.
+    public static readonly PointF Bulb = new(1695, 99);
     public static readonly PointF Led = new(1392, 852);
 
     public const float DeskTop = 930;

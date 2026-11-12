@@ -22,7 +22,9 @@ if (args.Length == 0 || args.Contains("--self-test"))
     runner.Suite("Instrumentation", InstrumentationTests.Run);
     runner.Suite("Night format", NightLoaderTests.Run);
     runner.Suite("Night rules", NightRulesTests.Run);
+    runner.Suite("Editor tokens", TokenizerTests.Run);
     if (OperatingSystem.IsWindows()) runner.Suite("Isolated runner", RunnerTests.Run);
+    if (OperatingSystem.IsWindows()) runner.Suite("Night session", NightSessionTests.Run);
     return runner.Report(Console.Out);
 }
 

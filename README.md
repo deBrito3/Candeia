@@ -2,7 +2,7 @@
 
 Jogo de terror e programação para Windows. Você volta ao casarão da infância, no Recife, e sobrevive às noites escrevendo C# que compila e roda de verdade, enquanto o Papa-Figo se aproxima. Arte vetorial desenhada pelo próprio jogo e sons sintetizados em código, sem assets externos.
 
-**Estado:** entrega 5 de 11. O jogo verifica, compila e executa C# de verdade, num processo isolado; tem as noites 1 e 2 do Ato 1; tem as regras da noite (relógio elástico, penalidades, velas, marcas e o trajeto do Papa-Figo), conferidas em noites simuladas; e tem o protótipo de desenho do quarto à luz de vela, com o Papa-Figo em cada parada e as medições de desempenho. Ainda não há uma noite jogável.
+**Estado:** entrega 6 de 11. A noite 1 é jogável: o CANDEIA no monitor (barra de título com a presença, lâmpadas, editor de C# com cores, números de linha e autocompletar, LEIA-ME, saída e dicas), o código rodando no executor isolado, o relógio elástico, as velas e o Papa-Figo nas paradas. Ainda sem som, caderno, o preço do doce e progresso salvo.
 
 ## Requisitos
 
@@ -20,6 +20,8 @@ Jogo de terror e programação para Windows. Você volta ao casarão da infânci
 ./scripts/security-test.ps1                       # ataca o executor isolado e mostra o que cada camada bloqueou
 ./scripts/content-test.ps1                        # confere cada noite com o código inicial e a solução de referência
 ./scripts/simulate.ps1                            # joga noites roteirizadas pelas regras e mostra a linha do tempo
+./scripts/ui-test.ps1                             # confere o editor e as teclas da noite em janelas de verdade
+./scripts/night-bench.ps1                          # joga a noite 1 sozinha: imagens de cada momento e medições
 ./scripts/scene.ps1                               # abre o protótipo de desenho (F2 troca a parada, F3 mostra as medições)
 ./scripts/scene-bench.ps1                         # mede o desenho em 1920x1080 por uns 2 minutos e salva o relatório
 ```
@@ -71,6 +73,22 @@ Os valores ficam em `content/rules.json`: tempo por ato, parte do tempo devolvid
 - `CreatureDirector` decide em que parada ele está, se pode ser visto naquele ato, avisa com um som antes de cada chegada e dispara os sustos roteirizados das noites.
 
 A solução de referência de cada noite fica em `tests/Candeia.Tests/Solutions/<id>.cs` e não vai no jogo. Os conceitos exigidos podem ser uma construção que precisa rodar (`if`, `for`, `foreach`, `while`, `do`, `switch`, `conditional`), uma variável de um tipo (`declare:double`) ou um operador (`operator:%`).
+
+## Tela da noite
+
+O CANDEIA roda no vidro do monitor: a barra de título com a noite e o sensor de presença, as lâmpadas (uma por teste), o editor de C# e o painel de baixo, com três abas.
+
+| Tecla | O que faz |
+| --- | --- |
+| F5 | Executa o código: verifica, compila, roda no executor isolado e acende as lâmpadas |
+| Ctrl+1 | LEIA-ME, o enunciado da noite |
+| Ctrl+2 | SAÍDA, o resultado de cada teste e os erros explicados |
+| Ctrl+3 | DICAS; cada novo Ctrl+3 abre a próxima camada: a ideia, os comandos, o esqueleto |
+| Esc | Pausa e continua a noite |
+| Enter | Começa a noite, abre a próxima depois da vitória ou recomeça depois da captura |
+| F11 | Tela cheia |
+
+O tempo só começa a correr quando você fecha o LEIA-ME com Enter ou digita a primeira tecla. A sequência da noite fica no `Candeia.Core`, na classe `NightSession`, e as suítes a jogam com o executor de verdade.
 
 ## Desenho
 

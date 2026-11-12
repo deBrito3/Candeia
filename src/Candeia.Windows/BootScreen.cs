@@ -42,6 +42,9 @@ static class BootScreen
         g.DrawString(prompt, small, amber, px, py);
         if (CursorVisible(elapsed))
             g.FillRectangle(amber, px + promptSize.Width, py + subtitleSize.Height * 0.15f, unit * 1.0f, subtitleSize.Height * 0.75f);
+        string hint = "Enter liga a casa";
+        var hintSize = g.MeasureString(hint, small);
+        g.DrawString(hint, small, dim, cx - hintSize.Width / 2f, py + subtitleSize.Height * 2.2f);
     }
 
     public static void SaveShot(string path, Size size)

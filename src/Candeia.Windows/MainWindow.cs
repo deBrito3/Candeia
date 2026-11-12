@@ -3,14 +3,18 @@ using System.Runtime.InteropServices;
 
 namespace Candeia;
 
-// The game window. In this first delivery it only shows the empty CANDEIA screen.
+// The CANDEIA boot screen. Enter turns the house system on: the first night opens and this window closes
+// with it.
 sealed class MainWindow : Form
 {
     readonly System.Windows.Forms.Timer blink = new() { Interval = BootScreen.BlinkMilliseconds };
     readonly Stopwatch clock = Stopwatch.StartNew();
+    readonly Func<Form>? next;
 
-    public MainWindow()
+    public MainWindow(Func<Form>? next = null)
     {
+        this.next = next;
+        KeyPreview = true;
         Text = GameInfo.Name;
         ClientSize = new Size(1280, 800);
         MinimumSize = new Size(1024, 640);
@@ -28,6 +32,16 @@ sealed class MainWindow : Form
     }
 
     protected override void OnPaint(PaintEventArgs e) => BootScreen.Paint(e.Graphics, ClientSize, clock.Elapsed);
+
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+        if (e.KeyCode != Keys.Enter || next is null || !Visible) return;
+        var screen = next();
+        screen.FormClosed += (_, _) => Close();
+        screen.Show();
+        Hide();
+    }
 
     protected override void Dispose(bool disposing)
     {

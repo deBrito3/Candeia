@@ -1,11 +1,18 @@
+using Candeia.Challenges;
+using Candeia.Screens;
+
 namespace Candeia;
 
 static class Program
 {
     // Modes:
-    //   (no arguments)              opens the game window
+    //   (no arguments)              the CANDEIA boot screen; Enter opens the first night
+    //   --night <id>                opens a night directly, for example --night act1-02-system-battery
     //   --runner                    the isolated runner the game starts for the player's code (never by hand)
     //   --shot <file.png>           renders the boot screen to an image and exits (visual review)
+    //   --night-images <folder>     plays the moments of night 1 by itself and saves one image of each
+    //   --night-bench <report.md>   measures typing, frame rate and processor on the night screen
+    //   --ui-test <report.txt>      checks the editor and the night's keys in real windows
     //   --scene                     opens the rendering prototype: the room, the candles, the Papa-Figo
     //   --scene-bench <report.md>   measures the prototype at 1920×1080 and writes the report and images
     //   --scene-images <folder>     saves one image of the prototype per station
@@ -35,7 +42,40 @@ static class Program
             case ["--scene-profile", var profile]:
                 return Scene.SceneBench.Profile(profile);
         }
-        Application.Run(new MainWindow());
+
+        var nights = Nights();
+        if (nights.Count == 0) return 1;
+        switch (args)
+        {
+            case ["--night", var id]:
+                var night = nights.FirstOrDefault(n => n.Id == id);
+                if (night is null)
+                {
+                    MessageBox.Show($"Noite não encontrada: {id}", GameInfo.Name);
+                    return 2;
+                }
+                Application.Run(new NightScreen(night, nights));
+                return 0;
+            case ["--night-images", var folder]:
+                return NightBench.Run(nights, folder, images: true);
+            case ["--night-bench", var report]:
+                return NightBench.Run(nights, report, images: false);
+            case ["--ui-test", var report]:
+                return UiTests.Run(nights, report);
+        }
+        Application.Run(new MainWindow(() => new NightScreen(nights[0], nights)));
         return 0;
+    }
+
+    // Every night in content/, in campaign order. A night that fails to load is reported and left out.
+    static List<NightDefinition> Nights()
+    {
+        var loaded = NightLoader.LoadAll();
+        var broken = loaded.Where(l => !l.Ok).ToList();
+        if (broken.Count > 0)
+            MessageBox.Show("Noites com problema, deixadas de fora:\n" + string.Join("\n", broken.Select(b => $"{Path.GetFileName(b.Folder)}: {string.Join("; ", b.Errors)}")), GameInfo.Name);
+        var nights = loaded.Where(l => l.Ok).Select(l => l.Night!).OrderBy(n => n.Act).ThenBy(n => n.Order).ToList();
+        if (nights.Count == 0) MessageBox.Show("Nenhuma noite encontrada na pasta content.", GameInfo.Name);
+        return nights;
     }
 }

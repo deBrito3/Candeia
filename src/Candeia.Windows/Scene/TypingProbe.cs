@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Candeia.Panels;
 
 namespace Candeia.Scene;
 
@@ -50,7 +51,8 @@ sealed class TypingProbe : IDisposable
             Native.PostMessage(target, Native.WM_CHAR, (IntPtr)word[typed++], (IntPtr)(1 | (Marker << 16)));
             long deadline = at + Stopwatch.Frequency / 2;
             while (running && Interlocked.Read(ref inFlight) == at && Stopwatch.GetTimestamp() < deadline) Thread.Sleep(1);
-            if (Interlocked.CompareExchange(ref inFlight, 0, at) == at) Interlocked.Increment(ref lost);
+            // A letter still on its way when the probe stops is not lost: the measurement just ended.
+            if (Interlocked.CompareExchange(ref inFlight, 0, at) == at && running) Interlocked.Increment(ref lost);
         }
     }
 
@@ -79,65 +81,5 @@ sealed class TypingProbe : IDisposable
     {
         running = false;
         thread?.Join(1000);
-    }
-}
-
-// The editor of the prototype: a plain rich text box on the monitor glass. The real editor, with colours
-// and completion, comes in the first playable night. With a probe attached, it reports when each posted
-// letter has been inserted and drawn.
-sealed class CodeEditor : RichTextBox
-{
-    long waiting;
-    int baseline = -1, caret;
-
-    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
-    public TypingProbe? Probe { get; private set; }
-
-    // Starts measuring with the caret at position: letters are typed there and removed again.
-    public void Attach(TypingProbe probe, int position)
-    {
-        baseline = TextLength;
-        caret = position;
-        Select(caret, 0);
-        Probe = probe;
-        probe.Start(this);
-    }
-
-    public void Detach()
-    {
-        Probe?.Dispose();
-        Probe = null;
-        RestoreText();
-    }
-
-    // Removes what the probe typed since the last time.
-    public void RestoreText()
-    {
-        if (baseline < 0 || TextLength <= baseline) return;
-        Select(caret, TextLength - baseline);
-        SelectedText = "";
-        Select(caret, 0);
-    }
-
-    protected override void WndProc(ref Message m)
-    {
-        if (m.Msg == Native.WM_CHAR && Probe is { } probe && TypingProbe.IsProbe(m.LParam))
-        {
-            long postedAt = probe.InFlight;
-            base.WndProc(ref m);
-            // The text box usually draws the new letter at once; if it left a repaint pending, the letter
-            // only counts as shown once that paint is done.
-            if (Native.GetUpdateRect(Handle, IntPtr.Zero, false)) waiting = postedAt;
-            else probe.Shown(postedAt);
-            return;
-        }
-        if (m.Msg == Native.WM_PAINT && waiting != 0 && Probe is { } painter)
-        {
-            base.WndProc(ref m);
-            painter.Shown(waiting);
-            waiting = 0;
-            return;
-        }
-        base.WndProc(ref m);
     }
 }
