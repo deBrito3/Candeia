@@ -1,0 +1,127 @@
+CANDEIA · versão de teste / test build
+=====================================
+
+English below.
+
+
+PORTUGUÊS
+---------
+
+Candeia é um jogo de terror e programação. Você volta ao casarão da infância, no Recife, e sobrevive às
+noites escrevendo C# que compila e roda de verdade, enquanto o Papa-Figo se aproxima. Esta versão tem o
+Ato 1: cinco noites.
+
+Como abrir
+
+1. Descompacte o zip numa pasta sua, por exemplo em Documentos. Não abra o jogo de dentro do zip.
+2. Abra Candeia.exe. Não é preciso instalar nada: basta o Windows 10 ou 11 de 64 bits.
+3. O Windows pode avisar "O Windows protegeu o computador", porque o jogo ainda não tem assinatura
+   digital. Clique em "Mais informações" e depois em "Executar assim mesmo".
+4. Na primeira vez, escolha a dificuldade: Vigília se você nunca programou, Noite se já começou.
+
+Use fones de ouvido: o som diz de onde ele vem.
+
+Aviso: o jogo tem clarões de relâmpago, sustos e sons altos de repente. Na tela inicial, a tecla S liga
+os sustos suaves, sem clarões.
+
+Teclas
+
+  F5              executa o seu código
+  Ctrl+1 a Ctrl+5 LEIA-ME, SAÍDA, DICAS, CADERNO e REVISÃO
+  F1              a página do caderno da palavra sob o cursor
+  Esc             pausa; na pausa, M volta ao menu
+  Ctrl+= e Ctrl+- aumenta e diminui a fonte do editor
+  F11             tela cheia
+
+Onde ficam as coisas (cole o caminho na barra do Explorador de Arquivos)
+
+  O progresso:              %LOCALAPPDATA%\Candeia\save.json
+  Se o jogo quebrar:        um relatório em %LOCALAPPDATA%\Candeia\erros\
+                            (ele não leva o seu código)
+  Para recomeçar do zero:   feche o jogo e apague a pasta %LOCALAPPDATA%\Candeia
+
+O que mandar de volta
+
+Responda às perguntas abaixo e mande as respostas, junto com os relatórios de erro se houver algum, para
+quem te passou o jogo.
+
+Sobre você
+  1. Você já programava antes? Em qual linguagem, e há quanto tempo?
+  2. Qual dificuldade escolheu?
+
+Para cada noite (1 a 5)
+  3. Venceu? Mais ou menos quanto tempo levou?
+  4. Ele te pegou alguma vez? Quantas?
+  5. Aceitou doces (dicas)? Quantos?
+  6. O LEIA-ME deixou claro o que fazer? O que confundiu?
+
+Em geral
+  7. De 1 a 5, quanto foi divertido?
+  8. De 1 a 5, quanto deu medo? Em que momento mais?
+  9. As explicações dos erros ajudaram? Lembra de alguma que não ajudou?
+ 10. O tempo pareceu curto, justo ou folgado?
+ 11. Algo travou, demorou ou pareceu errado? Conte o que você estava fazendo.
+ 12. O que você mudaria primeiro?
+
+Obrigado por jogar.
+
+
+ENGLISH
+-------
+
+Candeia is a horror programming game. You go back to your childhood home in Recife and survive the nights
+by writing C# that really compiles and runs, while the Papa-Figo comes closer. This build has Act 1: five
+nights. In the options (on the menu), the language can be English.
+
+How to open it
+
+1. Unzip it into a folder of yours, for example Documents. Do not open the game from inside the zip.
+2. Open Candeia.exe. Nothing needs installing: 64-bit Windows 10 or 11 is enough.
+3. Windows may warn "Windows protected your PC", because the game is not digitally signed yet. Click
+   "More info" and then "Run anyway".
+4. The first time, choose the difficulty: Vigil if you never programmed, Night if you have started.
+
+Use headphones: the sound tells you where he comes from.
+
+Warning: the game has lightning flashes, scares and sudden loud sounds. On the boot screen, S turns on soft
+scares, without flashes.
+
+Keys
+
+  F5              runs your code
+  Ctrl+1 to 5     README, OUTPUT, HINTS, NOTEBOOK and REVIEW
+  F1              the notebook page of the word under the caret
+  Esc             pause; in the pause, M goes back to the menu
+  Ctrl+= and -    makes the editor's font bigger and smaller
+  F11             full screen
+
+Where things are (paste the path into File Explorer's address bar)
+
+  Your progress:            %LOCALAPPDATA%\Candeia\save.json
+  If the game breaks:       a report in %LOCALAPPDATA%\Candeia\erros\
+                            (it never carries your code)
+  To start over from zero:  close the game and delete the folder %LOCALAPPDATA%\Candeia
+
+What to send back
+
+Answer the questions below and send the answers, with any crash reports, to whoever gave you the game.
+
+About you
+  1. Did you program before? In which language, and for how long?
+  2. Which difficulty did you choose?
+
+For each night (1 to 5)
+  3. Did you win? About how long did it take?
+  4. Did he take you? How many times?
+  5. Did you take sweets (hints)? How many?
+  6. Did the README make clear what to do? What was confusing?
+
+Overall
+  7. From 1 to 5, how much fun was it?
+  8. From 1 to 5, how scary was it? At what moment the most?
+  9. Did the error explanations help? Do you remember one that did not?
+ 10. Did the time feel short, fair or generous?
+ 11. Did anything freeze, lag or feel wrong? Tell what you were doing.
+ 12. What would you change first?
+
+Thank you for playing.

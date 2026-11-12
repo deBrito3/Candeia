@@ -2,7 +2,7 @@
 
 Jogo de terror e programação para Windows. Você volta ao casarão da infância, no Recife, e sobrevive às noites escrevendo C# que compila e roda de verdade, enquanto o Papa-Figo se aproxima. Arte vetorial desenhada pelo próprio jogo e sons sintetizados em código, sem assets externos.
 
-**Estado:** entrega 10A de 11. O Ato 1 está completo, em português e inglês, com o progresso salvo, e a cena é desenhada numa thread própria. São cinco noites:
+**Estado:** entrega 10B de 11, a versão de teste. O Ato 1 está completo, em português e inglês, com o progresso salvo, e o jogo sai num zip pronto para quem vai testar. São cinco noites:
 
 - 1, A luz do quarto: variáveis e tipos;
 - 2, A bateria do sistema: operações;
@@ -27,7 +27,7 @@ Em volta das noites:
 - as opções de idioma, fonte, contraste, legendas, sustos suaves e volume por camada;
 - duas páginas secretas do caderno, abertas pelas marcas.
 
-A próxima entrega é a 10B, a versão de teste: o executável de arquivo único num zip com as noites, as licenças e o guia para quem vai testar.
+Depois dos testes de jogo vêm os Atos 2, 3 e 4, que ainda não têm plano.
 
 ## Requisitos
 
@@ -39,6 +39,7 @@ A próxima entrega é a 10B, a versão de teste: o executável de arquivo único
 ```powershell
 ./scripts/test.ps1                                # compila tudo e roda as suítes de teste
 ./scripts/run.ps1                                 # abre o jogo
+./scripts/publish.ps1                             # gera a versão de teste em dist/: o zip com o jogo, as noites, as licenças e o guia
 ./scripts/run.ps1 --shot test-artifacts/boot.png  # salva a tela inicial numa imagem
 ./scripts/check.ps1                               # verifica as amostras de samples/csharp como uma noite faria
 ./scripts/check.ps1 meu-arquivo.cs --en           # verifica um arquivo, com as mensagens em inglês
@@ -258,6 +259,32 @@ Na tomada, o resultado é a digitação com p95 abaixo de 8 ms e o processador e
 ./scripts/dotnet.ps1 run --project src/Candeia.Windows -c Release -- --scene-profile test-artifacts/perfil.md
 ```
 
+## Versão de teste
+
+`./scripts/publish.ps1` gera `dist/Candeia-<versão>-teste.zip`, com cerca de 46 MB, contendo:
+
+| Arquivo | Conteúdo |
+| --- | --- |
+| `Candeia.exe` | O jogo num arquivo só, com o .NET dentro, para Windows 10 e 11 de 64 bits; não precisa instalar nada |
+| `content/` | As noites e o caderno, ao lado do exe, para mudar sem gerar o jogo de novo |
+| `licenses/` | As licenças do Roslyn, do .NET e do Windows Desktop |
+| `LICENSE.txt` | Os termos do Candeia: todos os direitos reservados, uso pessoal da versão de teste |
+| `COMO-TESTAR.txt` | O guia para quem vai testar, com o questionário, em português e inglês |
+
+O script recusa gerar o pacote em dois casos:
+
+- o .NET dentro do exe não é a versão cujas licenças estão em `licenses/`;
+- o exe guarda algum caminho deste computador. O build mapeia os caminhos do código-fonte, para que os relatórios de erro dos testadores não carreguem as pastas de quem gerou o jogo.
+
+Na entrega 10B, o pacote passou pelas conferências abaixo:
+
+- descompactado fora do repositório e sem o .NET no PATH, compilou e rodou as noites pelo executor isolado;
+- os 99 testes de interface passaram com o exe do pacote;
+- a suíte de ataques, publicada também em arquivo único e rodada fora do repositório, conteve os 19 ataques;
+- o Windows Defender não encontrou ameaças, nem na pasta nem no zip.
+
+O exe não tem assinatura digital, então o Windows mostra o aviso do SmartScreen, e o guia explica como passar por ele. O Windows deste computador é Home, sem o Windows Sandbox, então o teste num Windows limpo é feito em outro computador.
+
 ## Estrutura
 
 | Pasta | Conteúdo |
@@ -269,5 +296,6 @@ Na tomada, o resultado é a digitação com p95 abaixo de 8 ms e o processador e
 | `samples/csharp/` | Programas de exemplo, certos e errados, para conferir o verificador de C# |
 | `scripts/` | SDK isolado, testes, verificação de C# e execução |
 | `licenses/` | Licenças de componentes de terceiros distribuídos com o jogo |
+| `docs/` | O guia para quem vai testar, que vai no zip |
 
 Todo o código, inclusive nomes e comentários, é escrito em inglês. A interface, o caderno e as explicações ao jogador ficam em português e inglês.

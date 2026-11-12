@@ -1,0 +1,12 @@
+Candeia
+Copyright (c) 2026 Weydson de Brito. Todos os direitos reservados. / All rights reserved.
+
+PT: O código-fonte do Candeia está publicado para leitura e para os testes de jogo. Nenhuma permissão de
+copiar, modificar ou distribuir o jogo, o código ou o conteúdo (noites, caderno, textos, sons e desenhos
+gerados pelo código) é concedida além do uso pessoal da versão de teste recebida. Os componentes de
+terceiros na pasta licenses/ seguem as suas próprias licenças.
+
+EN: Candeia's source code is published for reading and for play-testing. No permission to copy, modify or
+distribute the game, its code or its content (nights, notebook, texts, and the sounds and drawings the
+code generates) is granted beyond personal use of the test build received. The third-party components in
+the licenses/ folder follow their own licenses.
