@@ -51,12 +51,13 @@ static class BootScreen
         [
             "Aviso: este jogo tem clarões de relâmpago, sustos e sons altos de repente.",
             $"S liga os sustos suaves, sem clarões: {(Options.SoftScares ? "LIGADOS" : "desligados")}.",
+            $"V troca a dificuldade: {(Options.Difficulty == Night.Difficulty.Vigil ? "VIGÍLIA, para quem nunca programou" : "NOITE")}.",
         ];
         float wy = size.Height - unit * 9;
         foreach (var line in warning)
         {
             var lineSize = g.MeasureString(line, small);
-            g.DrawString(line, small, line.StartsWith('S') ? amber : dim, cx - lineSize.Width / 2f, wy);
+            g.DrawString(line, small, line.StartsWith('S') || line.StartsWith('V') ? amber : dim, cx - lineSize.Width / 2f, wy);
             wy += lineSize.Height * 1.2f;
         }
     }

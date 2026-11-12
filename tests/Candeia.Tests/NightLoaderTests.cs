@@ -1,4 +1,5 @@
 using Candeia.Challenges;
+using Candeia.Night;
 using Candeia.Languages;
 using Candeia.Languages.CSharp;
 
@@ -26,12 +27,18 @@ static class NightLoaderTests
     public static void Run(TestRunner t)
     {
         var all = NightLoader.LoadAll();
-        t.Check(all.Count >= 2 && all.All(r => r.Ok), "the content folder loads: " + string.Join("; ", all.SelectMany(r => r.Errors)));
-        t.Check(all.Select(r => r.Night?.Id).SequenceEqual(["act1-01-room-light", "act1-02-system-battery"]), "nights load in act and order");
+        t.Check(all.Count >= 5 && all.All(r => r.Ok), "the content folder loads: " + string.Join("; ", all.SelectMany(r => r.Errors)));
+        t.Check(all.Select(r => r.Night?.Id).SequenceEqual(["act1-01-room-light", "act1-02-system-battery", "act1-03-yard-light", "act1-04-gate-lock", "act1-05-house-wakes"]), "the five nights of Act 1 load in order");
+        t.Check(all[3].Night!.Type == "corrupted" && all[4].Night!.Type == "siege", "night 4 is corrupted code and night 5 the siege");
         var first = all[0].Night!;
         t.Check(first.Intro && first.Tests.Count == 4 && first.Tests[1].Method == "Voltage", "a test can name its method");
         t.Check(first.Hints.Count == 3 && first.Hints[2].Pt.Contains("___") && first.Hints[2].En.Contains("___"), "the third hint layer is a skeleton with blanks");
         t.Check(first.Events is [{ On: "first-new-lamp", Effect: "silhouette", Where: "yard" }], "events load");
+        // Vigil reads a part from zero before the first night's LEIA-ME; the other difficulty does not.
+        t.Check(first.Beginner is not null && first.ReadmeFor(Difficulty.Vigil).Pt.StartsWith("# Do zero", StringComparison.Ordinal)
+            && first.ReadmeFor(Difficulty.Vigil).En.StartsWith("# From zero", StringComparison.Ordinal) && first.ReadmeFor(Difficulty.Vigil).Pt.Contains(first.Readme.Pt),
+            "in Vigil, the first night's LEIA-ME starts from zero");
+        t.Check(first.ReadmeFor(Difficulty.Night) == first.Readme && all[1].Night!.Beginner is null && all[1].Night!.ReadmeFor(Difficulty.Vigil) == all[1].Night!.Readme, "in Night, and on nights without that part, the LEIA-ME is the same");
 
         t.Check(Load(Valid).Ok, "a valid night loads");
         (string Name, string Json, string Expected)[] broken =

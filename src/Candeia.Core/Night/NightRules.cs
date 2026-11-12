@@ -11,7 +11,9 @@ public enum SweetPolicy { Free, Paid, None }
 
 public sealed record StreakAdvance(int After, double Cost);
 
-public sealed record ActRules(int Act, double NightSeconds, double SiegeSeconds, double LampPool, double CostMultiplier, Station VisibleUntil, StreakAdvance? StreakAdvance);
+// VisibleUntil is the closest station where he can be seen in the act's nights; SiegeVisibleUntil, in its
+// siege night (the same unless the act says otherwise).
+public sealed record ActRules(int Act, double NightSeconds, double SiegeSeconds, double LampPool, double CostMultiplier, Station VisibleUntil, StreakAdvance? StreakAdvance, Station SiegeVisibleUntil);
 
 public sealed record DifficultyRules(Difficulty Difficulty, double Time, double Costs, int Candles, SweetPolicy Sweet);
 
@@ -59,11 +61,14 @@ public sealed record NightRules(
             if (!root.GetProperty("acts").TryGetProperty(act.ToString(), out var value)) { problems.Add($"acts.{act} is missing"); continue; }
             StreakAdvance? streak = value.TryGetProperty("streakAdvance", out var s)
                 ? new(s.GetProperty("after").GetInt32(), Fraction(s.GetProperty("cost"), $"acts.{act}.streakAdvance.cost", problems)) : null;
+            var visible = StationNamed(value.GetProperty("visibleUntil").GetString(), problems);
+            var siegeVisible = value.TryGetProperty("siegeVisibleUntil", out var sv) ? StationNamed(sv.GetString(), problems) : visible;
+            if (siegeVisible < visible) problems.Add($"acts.{act}.siegeVisibleUntil cannot hide him more than visibleUntil");
             acts[act] = new(act, Positive(value.GetProperty("nightSeconds"), $"acts.{act}.nightSeconds", problems),
                 Positive(value.GetProperty("siegeSeconds"), $"acts.{act}.siegeSeconds", problems),
                 Fraction(value.GetProperty("lampPool"), $"acts.{act}.lampPool", problems),
                 Positive(value.GetProperty("costMultiplier"), $"acts.{act}.costMultiplier", problems),
-                StationNamed(value.GetProperty("visibleUntil").GetString(), problems), streak);
+                visible, streak, siegeVisible);
         }
 
         var difficulties = new Dictionary<Difficulty, DifficultyRules>();

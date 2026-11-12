@@ -85,6 +85,41 @@
         "Max",
         "Min"
       ]
+    },
+    {
+      "id": "if",
+      "act": 1,
+      "keywords": [
+        "if"
+      ]
+    },
+    {
+      "id": "comparisons",
+      "act": 1,
+      "keywords": [
+        "==",
+        "!=",
+        "<",
+        ">",
+        "<=",
+        ">="
+      ]
+    },
+    {
+      "id": "logic",
+      "act": 1,
+      "keywords": [
+        "&&",
+        "||",
+        "!"
+      ]
+    },
+    {
+      "id": "else",
+      "act": 1,
+      "keywords": [
+        "else"
+      ]
     }
   ]
 }

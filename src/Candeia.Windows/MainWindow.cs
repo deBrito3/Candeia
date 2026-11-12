@@ -42,6 +42,12 @@ sealed class MainWindow : Form
             Invalidate();
             return;
         }
+        if (e.KeyCode == Keys.V)
+        {
+            Options.Difficulty = Options.Difficulty == Night.Difficulty.Vigil ? Night.Difficulty.Night : Night.Difficulty.Vigil;
+            Invalidate();
+            return;
+        }
         if (e.KeyCode != Keys.Enter || next is null || !Visible) return;
         var screen = next();
         screen.FormClosed += (_, _) => Close();

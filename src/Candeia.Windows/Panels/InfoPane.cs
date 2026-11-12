@@ -122,7 +122,16 @@ sealed partial class InfoPane : Control
         int pad = style.Px(10);
         var area = new Rectangle(pad, HeaderHeight + style.Px(4), Math.Max(10, Width - pad * 2), Math.Max(10, Height - HeaderHeight - style.Px(8)));
         readme.Bounds = output.Bounds = hints.Bounds = notebook.Bounds = review.Bounds = area;
+        // Tables are laid out for the panel's width (in columns, or one block per row when too wide), so a
+        // new width lays out again the texts that can hold one.
+        if (area.Width == laidOutWidth) return;
+        laidOutWidth = area.Width;
+        ShowReadme(markdown);
+        ShowHints(layers, layersShown, hintPrice.Available, hintPrice.Cost);
+        ShowNotebook(pages, page);
     }
+
+    int laidOutWidth;
 
     protected override void OnHandleCreated(EventArgs e)
     {
@@ -344,6 +353,21 @@ sealed partial class InfoPane : Control
         if (rows.Count == 0) return;
         int columns = rows.Max(r => r.Length);
         var widths = Enumerable.Range(0, columns).Select(c => rows.Max(r => c < r.Length ? Plain(r[c]).Length : 0)).ToArray();
+        // Too wide for the panel, the columns would wrap into each other: each row becomes a short block
+        // instead, its first cell on top and the others below it, under their headings.
+        float letter = TextRenderer.MeasureText(new string('M', 20), style.Text).Width / 20f;
+        int fits = box.ClientSize.Width > 0 ? (int)((box.ClientSize.Width - style.Px(24)) / letter) : int.MaxValue;
+        if (widths.Sum() + 2 * (columns - 1) > fits && rows.Count > 1)
+        {
+            for (int r = 1; r < rows.Count; r++)
+            {
+                if (r > 1) Append(box, "\n", style.Text, SystemStyle.Ink);
+                Inline(box, (rows[r].Length > 0 ? rows[r][0] : "") + "\n", SystemStyle.Bright);
+                for (int c = 1; c < rows[r].Length; c++)
+                    Inline(box, $"  {(c < rows[0].Length ? rows[0][c] : "")}: {rows[r][c]}\n", SystemStyle.Ink);
+            }
+            return;
+        }
         for (int r = 0; r < rows.Count; r++)
         {
             for (int c = 0; c < columns; c++)

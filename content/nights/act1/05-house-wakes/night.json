@@ -1,0 +1,36 @@
+{
+  "id": "act1-05-house-wakes",
+  "act": 1,
+  "order": 5,
+  "type": "siege",
+  "title": { "pt": "A casa acorda", "en": "The house wakes" },
+  "learned": { "pt": "Uma noite inteira de decisões: contas com int e double, uma comparação com <=, e uma escada de if e else if com &&, na ordem em que a casa precisa.", "en": "A whole night of decisions: sums with int and double, a comparison with <=, and a ladder of if and else if with &&, in the order the house needs." },
+  "class": "FuseBox",
+  "methods": [
+    { "name": "TotalLoad", "returns": "int", "params": [ { "name": "lights", "type": "int" }, { "name": "fridge", "type": "int" }, { "name": "pump", "type": "int" } ] },
+    { "name": "Usage", "returns": "double", "params": [ { "name": "load", "type": "int" }, { "name": "capacity", "type": "int" } ] },
+    { "name": "CanTurnOn", "returns": "bool", "params": [ { "name": "load", "type": "int" }, { "name": "extra", "type": "int" }, { "name": "capacity", "type": "int" } ] },
+    { "name": "NextCircuit", "returns": "string", "params": [ { "name": "load", "type": "int" }, { "name": "capacity", "type": "int" }, { "name": "raining", "type": "bool" } ] }
+  ],
+  "concepts": ["if", "operator:&&"],
+  "tests": [
+    { "method": "TotalLoad", "args": [100, 300, 800], "expected": 1200 },
+    { "method": "TotalLoad", "args": [60, 0, 0], "expected": 60 },
+    { "method": "Usage", "args": [500, 2000], "expected": 25.0 },
+    { "method": "Usage", "args": [1500, 2000], "expected": 75.0 },
+    { "method": "Usage", "args": [1, 8], "expected": 12.5, "hidden": true },
+    { "method": "CanTurnOn", "args": [1000, 800, 2000], "expected": true },
+    { "method": "CanTurnOn", "args": [1500, 800, 2000], "expected": false },
+    { "method": "CanTurnOn", "args": [1200, 800, 2000], "expected": true, "hidden": true },
+    { "method": "NextCircuit", "args": [500, 2000, true], "expected": "PUMP" },
+    { "method": "NextCircuit", "args": [500, 2000, false], "expected": "FRIDGE" },
+    { "method": "NextCircuit", "args": [1900, 2000, false], "expected": "WAIT" },
+    { "method": "NextCircuit", "args": [1500, 2000, true], "expected": "FRIDGE", "hidden": true },
+    { "method": "NextCircuit", "args": [1700, 2000, false], "expected": "FRIDGE", "hidden": true },
+    { "method": "NextCircuit", "args": [1800, 2000, true], "expected": "WAIT", "hidden": true }
+  ],
+  "events": [
+    { "on": "start", "effect": "silhouette", "where": "yard", "seconds": 0.7 },
+    { "on": "first-new-lamp", "effect": "silhouette", "where": "gate", "seconds": 0.6 }
+  ]
+}

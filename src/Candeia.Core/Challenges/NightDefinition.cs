@@ -40,6 +40,14 @@ public sealed record NightDefinition(
     // What the night taught, in one line for the notebook after it is won.
     public Bilingual Learned { get; init; } = new("", "");
 
+    // For Vigil, the difficulty for people who never programmed: a part read before the LEIA-ME that
+    // explains from zero. Only some nights have one.
+    public Bilingual? Beginner { get; init; }
+
+    // The LEIA-ME as the player reads it in a difficulty: with the part from zero first, in Vigil.
+    public Bilingual ReadmeFor(Night.Difficulty difficulty) =>
+        difficulty == Night.Difficulty.Vigil && Beginner is { } b ? new(b.Pt + "\n\n" + Readme.Pt, b.En + "\n\n" + Readme.En) : Readme;
+
     public int HiddenTests => Tests.Count(t => t.Hidden);
 
     public RunRequest Request(byte[] assembly, byte[]? pdb) =>

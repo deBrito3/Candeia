@@ -9,10 +9,12 @@ public sealed class PenaltyRules
     readonly NightRules rules;
     readonly ActRules act;
     readonly DifficultyRules difficulty;
+    readonly bool siege;
 
     public PenaltyRules(NightRules rules, int act, Difficulty difficulty, bool siege = false)
     {
         this.rules = rules;
+        this.siege = siege;
         this.act = rules.Acts[act];
         this.difficulty = rules.Difficulties[difficulty];
         StartSeconds = (siege ? this.act.SiegeSeconds : this.act.NightSeconds) * this.difficulty.Time;
@@ -23,7 +25,8 @@ public sealed class PenaltyRules
     public double StartSeconds { get; }
     public int Candles => difficulty.Candles;
     public bool SweetAvailable => difficulty.Sweet != SweetPolicy.None;
-    public Station VisibleUntil => act.VisibleUntil;
+    public bool Siege => siege;
+    public Station VisibleUntil => siege ? act.SiegeVisibleUntil : act.VisibleUntil;
 
     double CostScale => StartSeconds * act.CostMultiplier * difficulty.Costs;
 

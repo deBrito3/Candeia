@@ -61,13 +61,23 @@ static class ContentTests
                 }
             }
             if (night.Hints.Count != 3) issues.Add("three hint layers are needed");
+            // The editor shows about 80 columns at 1920x1080 without scrolling sideways.
+            var wide = night.Starter.Replace("\r\n", "\n").Split('\n').Select((l, i) => (l, i)).Where(x => x.l.Length > 80).Select(x => x.i + 1).ToList();
+            if (wide.Count > 0) issues.Add("starter lines wider than 80 columns: " + string.Join(", ", wide));
             if (night.Learned.Pt.Length < 20 || night.Learned.En.Length < 20) issues.Add("the learned line needs a sentence in both languages");
             problems += issues.Count;
             output.WriteLine($"{night.Id} | {night.Title.Pt} / {night.Title.En} | {night.Tests.Count} | {night.HiddenTests} | {starterLamps} | {solutionLamps} | " +
                 (issues.Count == 0 ? "OK" : "FALHOU: " + string.Join("; ", issues)));
         }
-        // The notebook: every page in both languages, and each keyword opening one page only.
+        // The notebook: every page in both languages, each keyword opening one page only, and a page for every
+        // concept a night asks for.
         var notebook = Notebook.Load();
+        foreach (var night in loaded.Where(r => r.Ok).Select(r => r.Night!))
+            foreach (var concept in night.Concepts)
+            {
+                string word = concept.Contains(':') ? concept[(concept.IndexOf(':') + 1)..] : concept;
+                if (Notebook.For(notebook.Pages, word) is null) { output.WriteLine($"  FALHOU: {night.Id} asks for {concept}, and the notebook has no page for it"); problems++; }
+            }
         output.WriteLine();
         output.WriteLine($"Caderno: {notebook.Pages.Count} páginas ({string.Join(", ", notebook.Pages.Select(p => p.Title.Pt))})");
         foreach (var error in notebook.Errors) output.WriteLine("  FALHOU: " + error);

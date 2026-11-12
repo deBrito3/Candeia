@@ -2,7 +2,15 @@
 
 Jogo de terror e programação para Windows. Você volta ao casarão da infância, no Recife, e sobrevive às noites escrevendo C# que compila e roda de verdade, enquanto o Papa-Figo se aproxima. Arte vetorial desenhada pelo próprio jogo e sons sintetizados em código, sem assets externos.
 
-**Estado:** entrega 8 de 11. A noite 1 é jogável do começo ao fim, perdendo ou vencendo:
+**Estado:** entrega 9A de 11. As cinco noites do Ato 1 são jogáveis em sequência, perdendo ou vencendo:
+
+- 1, A luz do quarto: variáveis e tipos;
+- 2, A bateria do sistema: operações;
+- 3, A luz do quintal: `if` e `else`;
+- 4, A tranca do portão: `&&`, `||` e `else if`, num código corrompido;
+- 5, A casa acorda: a noite do cerco, com tudo do ato, e ele chegando à janela.
+
+Em cada noite:
 
 - o CANDEIA no monitor: presença, lâmpadas, editor de C#, LEIA-ME, saída, dicas, caderno e revisão;
 - o código rodando no executor isolado, com o relógio elástico e as velas;
@@ -11,7 +19,7 @@ Jogo de terror e programação para Windows. Você volta ao casarão da infânci
 - o doce com preço, o caderno de graça e o CORRIGIR;
 - a revisão depois da vitória.
 
-Ainda sem progresso salvo, menus e as outras noites.
+Ainda sem progresso salvo, menu, opções e a interface em inglês, que vêm na entrega 9B.
 
 ## Requisitos
 
@@ -73,17 +81,29 @@ Cada noite é uma pasta em `content/nights/<ato>/<noite>/`:
 | `starter.cs` | O código que o jogador encontra no computador antigo |
 | `readme.pt.md`, `readme.en.md` | O LEIA-ME deixado por quem escreveu o sistema |
 | `hints.pt.md`, `hints.en.md` | As três camadas de dica (`## 1` a ideia, `## 2` os comandos, `## 3` um esqueleto com lacunas) |
+| `beginner.pt.md`, `beginner.en.md` | Opcional: na Vigília, uma parte lida antes do LEIA-ME, que explica do zero |
 
 O `night.json` também traz `learned`, a frase do caderno que a revisão mostra depois da vitória.
+
+O `type` diz o formato da noite: `repair` (consertar métodos), `corrupted` (achar o defeito de um código que compila) ou `siege` (a noite do cerco, com o tempo maior). A validação confere que o código inicial cabe no editor, com no máximo 80 colunas por linha.
 
 O caderno fica em `content/notebook/`:
 
 - `pages.json` lista as páginas na ordem do índice, cada uma com o ato e as palavras do código que a abrem com F1 (uma página por palavra);
-- cada página é `<id>.pt.md` e `<id>.en.md`, começando por `# Título`.
+- cada página é `<id>.pt.md` e `<id>.en.md`, começando por `# Título`;
+- cada conceito que uma noite exige precisa ter a sua página, e a validação confere isso.
+
+No LEIA-ME, no caderno e nas dicas, uma tabela larga demais para o painel vira um bloco por linha.
 
 ## Regras da noite
 
-Os valores ficam em `content/rules.json`: tempo por ato, parte do tempo devolvida pelas lâmpadas, custos da regra "a casa faz barulho", velas, respiro, dificuldades e as faixas das paradas (rua, portão, quintal, janela, porta, ao seu lado). Ajustar o equilíbrio do jogo é mudar esse arquivo.
+Os valores ficam em `content/rules.json`. Ajustar o equilíbrio do jogo é mudar esse arquivo:
+
+- o tempo por ato e o da noite do cerco;
+- a parte do tempo devolvida pelas lâmpadas e os custos da regra "a casa faz barulho";
+- as velas, o respiro e as dificuldades;
+- as faixas das paradas: rua, portão, quintal, janela, porta e ao seu lado;
+- até onde ele pode ser visto em cada ato. No Ato 1, só até o quintal, e na noite do cerco até a janela.
 
 - `NightClock` é o tempo elástico: corre só enquanto o jogador programa, para enquanto as lâmpadas acendem e no respiro, perde uma vela a cada vez que zera e termina em vitória ou captura.
 - As marcas Ileso e Sem doce contam a noite inteira, com todas as tentativas. Uma captura custa todas as velas. Distância é a da tentativa que venceu.
@@ -136,6 +156,8 @@ Depois da vitória, a REVISÃO mostra:
 Para contar as linhas, o jogo roda os testes mais uma vez no executor isolado, com um contador antes de cada comando.
 
 A tela inicial avisa sobre clarões, sustos e sons altos. A tecla S, ali, liga os sustos suaves: sem relâmpago nem fósforo, uma captura que escurece devagar, ele menos aceso, sons mais baixos e os painéis sempre na tela.
+
+A tecla V, também na tela inicial, troca a dificuldade entre Noite e Vigília. Na Vigília há 50% mais tempo, quatro velas e dicas de graça, e a primeira noite começa por uma parte que explica do zero. Na entrega 9B, a escolha passa para o menu.
 
 ## Som
 

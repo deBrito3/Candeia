@@ -1,0 +1,30 @@
+{
+  "id": "act1-03-yard-light",
+  "act": 1,
+  "order": 3,
+  "type": "repair",
+  "title": { "pt": "A luz do quintal", "en": "The yard light" },
+  "learned": { "pt": "O if roda um bloco só quando a condição é verdadeira, e o else cobre o resto. Um return dentro do if já encerra o método, e dois if seguidos fazem duas perguntas.", "en": "if runs a block only when the condition is true, and else covers the rest. A return inside the if ends the method there, and two ifs in a row ask two questions." },
+  "class": "YardLight",
+  "methods": [
+    { "name": "IsDark", "returns": "bool", "params": [ { "name": "lux", "type": "int" } ] },
+    { "name": "ShouldLight", "returns": "bool", "params": [ { "name": "lux", "type": "int" }, { "name": "hour", "type": "int" } ] },
+    { "name": "Label", "returns": "string", "params": [ { "name": "on", "type": "bool" } ] }
+  ],
+  "concepts": ["if"],
+  "tests": [
+    { "method": "IsDark", "args": [10], "expected": true },
+    { "method": "IsDark", "args": [50], "expected": false, "hidden": true },
+    { "method": "ShouldLight", "args": [10, 22], "expected": true },
+    { "method": "ShouldLight", "args": [10, 12], "expected": false },
+    { "method": "ShouldLight", "args": [30, 1], "expected": true },
+    { "method": "ShouldLight", "args": [80, 23], "expected": false },
+    { "method": "ShouldLight", "args": [20, 18], "expected": true, "hidden": true },
+    { "method": "ShouldLight", "args": [20, 5], "expected": false, "hidden": true },
+    { "method": "Label", "args": [true], "expected": "ON" },
+    { "method": "Label", "args": [false], "expected": "OFF" }
+  ],
+  "events": [
+    { "on": "first-new-lamp", "effect": "silhouette", "where": "gate", "seconds": 0.8 }
+  ]
+}

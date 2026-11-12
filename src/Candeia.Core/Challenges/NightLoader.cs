@@ -11,6 +11,8 @@ namespace Candeia.Challenges;
 //   readme.en.md
 //   hints.pt.md     three hint layers ("## 1", "## 2", "## 3"): the idea, the commands, a skeleton
 //   hints.en.md
+//   beginner.pt.md  optional: for Vigil, a part read before the LEIA-ME that explains from zero
+//   beginner.en.md
 public static class NightLoader
 {
     public static readonly string[] Types = ["repair", "corrupted", "decode", "radio", "siege"];
@@ -55,12 +57,24 @@ public static class NightLoader
         }
         string? json = Read("night.json"), starter = Read("starter.cs"), readmePt = Read("readme.pt.md"), readmeEn = Read("readme.en.md"),
             hintsPt = Read("hints.pt.md"), hintsEn = Read("hints.en.md");
+        // The optional part for Vigil: both languages, or neither.
+        string beginnerPt = Path.Combine(folder, "beginner.pt.md"), beginnerEn = Path.Combine(folder, "beginner.en.md");
+        Bilingual? beginner = null;
+        if (File.Exists(beginnerPt) || File.Exists(beginnerEn))
+        {
+            string? pt = Read("beginner.pt.md"), en = Read("beginner.en.md");
+            if (pt is not null && en is not null)
+            {
+                if (pt.Trim().Length == 0 || en.Trim().Length == 0) errors.Add("beginner: both languages need text");
+                beginner = new(pt.Trim(), en.Trim());
+            }
+        }
         if (json is null) return new(folder, null, errors);
         try
         {
             using var document = JsonDocument.Parse(json, new JsonDocumentOptions { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true });
             var night = Parse(document.RootElement.Clone(), errors, folder, starter ?? "", readmePt ?? "", readmeEn ?? "", hintsPt ?? "", hintsEn ?? "");
-            return new(folder, errors.Count == 0 ? night : null, errors);
+            return new(folder, errors.Count == 0 && night is not null ? night with { Beginner = beginner } : null, errors);
         }
         catch (JsonException ex)
         {

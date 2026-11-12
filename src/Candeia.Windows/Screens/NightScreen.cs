@@ -107,15 +107,16 @@ sealed class NightScreen : Form
     public NightSession Session => session;
     public CodeEditor Editor => editor;
     public InfoPane Info => info;
+    public IReadOnlyList<NightDefinition> Nights => nights;
     public FrameStats Stats { get; } = new();
     public double Seconds => clock.Elapsed.TotalSeconds;
 
-    void Open(NightDefinition night)
+    internal void Open(NightDefinition night)
     {
-        session = new NightSession(night, rules, Difficulty.Night, runtime, host.Run);
+        session = new NightSession(night, rules, Options.Difficulty, runtime, host.Run);
         editor.ReadOnly = false;
         editor.Load(night.Starter);
-        info.ShowReadme(night.Readme.Pt + "\n\n**Enter** começa a noite. Ler não gasta tempo.");
+        info.ShowReadme(night.ReadmeFor(Options.Difficulty).Pt + "\n\n**Enter** começa a noite. Ler não gasta tempo.");
         info.ShowOutput([]);
         info.Choose(InfoPane.Tab.Readme);
         outputVersion = lampsVersion = hintsShown = reviewVersion = -1;

@@ -102,6 +102,26 @@ static class NightBench
             await Task.Delay(300);
             SceneBench.Capture(screen, Path.Combine(folder, "14-vitoria.png"));
         }
+
+        // The other nights: their LEIA-ME and their first run. In the siege, he reaches the window.
+        int picture = 15;
+        foreach (var other in screen.Nights.Skip(1))
+        {
+            screen.Open(other);
+            await Task.Delay(1200);
+            SceneBench.Capture(screen, Path.Combine(folder, $"{picture++}-{other.Id}-leia-me.png"));
+            screen.Command(Keys.Enter);
+            screen.Run();
+            await Settle(screen);
+            SceneBench.Capture(screen, Path.Combine(folder, $"{picture++}-{other.Id}-inicio.png"));
+            if (other.Type == "siege")
+            {
+                // A third of the time left: the window's stretch.
+                screen.Skip(screen.Session.Clock.Remaining - 0.33 * screen.Session.Clock.StartSeconds);
+                await Task.Delay(3500);
+                SceneBench.Capture(screen, Path.Combine(folder, $"{picture++}-{other.Id}-janela.png"));
+            }
+        }
         return 0;
     }
 

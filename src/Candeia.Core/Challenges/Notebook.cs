@@ -65,7 +65,9 @@ public static class Notebook
     public static NotebookPage? For(IReadOnlyList<NotebookPage> pages, string word) =>
         word.Length == 0 ? null : pages.FirstOrDefault(p => p.Keywords.Contains(word, StringComparer.Ordinal));
 
-    // The word of the code around a position: a name or keyword, or the operator character there.
+    static readonly string[] TwoCharacterOperators = ["&&", "||", "==", "!=", "<=", ">="];
+
+    // The word of the code around a position: a name or keyword, or the operator there.
     public static string WordAt(string code, int position)
     {
         if (code.Length == 0) return "";
@@ -75,8 +77,11 @@ public static class Notebook
         while (start > 0 && Letter(code[start - 1])) start--;
         while (end < code.Length && Letter(code[end])) end++;
         if (end > start) return code[start..end];
+        // An operator: the two-character ones first, with the caret before, inside or after them.
+        foreach (int at in new[] { position - 1, position, position - 2 })
+            if (at >= 0 && at + 2 <= code.Length && TwoCharacterOperators.Contains(code.Substring(at, 2))) return code.Substring(at, 2);
         foreach (int at in new[] { position, position - 1 })
-            if (at >= 0 && at < code.Length && "+-*/%=\"".Contains(code[at])) return code[at].ToString();
+            if (at >= 0 && at < code.Length && "+-*/%=\"<>!".Contains(code[at])) return code[at].ToString();
         return "";
     }
 }

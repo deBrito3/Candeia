@@ -1,0 +1,32 @@
+{
+  "id": "act1-04-gate-lock",
+  "act": 1,
+  "order": 4,
+  "type": "corrupted",
+  "title": { "pt": "A tranca do portão", "en": "The gate lock" },
+  "learned": { "pt": "&& pede as duas condições, || pede uma só, e ! inverte a resposta. Num else if, a ordem das perguntas decide: a primeira verdadeira vence.", "en": "&& needs both conditions, || needs just one, and ! flips the answer. In an else if, the order of the questions decides: the first true one wins." },
+  "class": "GateLock",
+  "methods": [
+    { "name": "IsDangerousHour", "returns": "bool", "params": [ { "name": "hour", "type": "int" } ] },
+    { "name": "CanOpen", "returns": "bool", "params": [ { "name": "code", "type": "string" }, { "name": "hour", "type": "int" } ] },
+    { "name": "Status", "returns": "string", "params": [ { "name": "code", "type": "string" }, { "name": "hour", "type": "int" } ] }
+  ],
+  "concepts": ["if", "operator:&&", "operator:||"],
+  "tests": [
+    { "method": "IsDangerousHour", "args": [22], "expected": true },
+    { "method": "IsDangerousHour", "args": [12], "expected": false },
+    { "method": "IsDangerousHour", "args": [18], "expected": true, "hidden": true },
+    { "method": "IsDangerousHour", "args": [6], "expected": false, "hidden": true },
+    { "method": "CanOpen", "args": ["3107", 10], "expected": true },
+    { "method": "CanOpen", "args": ["0000", 10], "expected": false },
+    { "method": "CanOpen", "args": ["3107", 23], "expected": false },
+    { "method": "CanOpen", "args": ["0000", 3], "expected": false, "hidden": true },
+    { "method": "Status", "args": ["3107", 10], "expected": "OPEN" },
+    { "method": "Status", "args": ["1234", 14], "expected": "WRONG CODE" },
+    { "method": "Status", "args": ["3107", 20], "expected": "DANGEROUS HOUR" },
+    { "method": "Status", "args": ["1234", 23], "expected": "DANGEROUS HOUR", "hidden": true }
+  ],
+  "events": [
+    { "on": "first-new-lamp", "effect": "silhouette", "where": "yard", "seconds": 0.7 }
+  ]
+}

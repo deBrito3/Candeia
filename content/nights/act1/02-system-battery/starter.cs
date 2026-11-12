@@ -1,6 +1,6 @@
 // CANDEIA · system battery
-// When the power goes out, the house runs on this battery.
-// The panel shows 0% even when the battery is full. Something here is wrong.
+// When the power goes out, the house runs on this battery. The panel shows
+// 0% even when the battery is full. Something here is wrong.
 public static class Battery
 {
     // The charge as a whole percentage of the capacity, rounded down.
@@ -10,7 +10,8 @@ public static class Battery
         return percent;
     }
 
-    // How many hours the battery lasts: the charge (watt-hours) divided by the load (watts), with decimals.
+    // How many hours the battery lasts: the charge (watt-hours) divided by
+    // the load (watts), with decimals.
     public static double Hours(int charge, int load)
     {
         return 0;
@@ -22,7 +23,8 @@ public static class Battery
         return 0;
     }
 
-    // The minutes left over after the whole hours: 125 minutes is 2 hours and 5 minutes, so 5.
+    // The minutes left over after the whole hours: 125 minutes is 2 hours
+    // and 5 minutes, so 5.
     public static int LeftoverMinutes(int minutes)
     {
         return 0;

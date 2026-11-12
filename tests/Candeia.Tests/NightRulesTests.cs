@@ -111,5 +111,16 @@ static class NightRulesTests
         late.Advance(470);
         actFour.Update(late, []);
         t.Check(actFour.State.Station == Station.Beside && actFour.State.Visible, "in Act 4 he is seen beside you");
+
+        // The Act 1 siege: for the first time, he is seen at the window; the door is still only heard.
+        var siegeRules = new PenaltyRules(rules, 1, Difficulty.Night, siege: true);
+        t.Check(siegeRules.StartSeconds == 540 && siegeRules.VisibleUntil == Station.Window && act1.VisibleUntil == Station.Yard, "the Act 1 siege lasts 9 minutes and lets him be seen at the window");
+        var siege = new CreatureDirector(siegeRules);
+        var siegeNight = new NightClock(siegeRules, lamps: 4);
+        siege.Update(siegeNight, siegeNight.BeginCoding());
+        while (siegeNight.FractionLeft > 0.39) siege.Update(siegeNight, siegeNight.Advance(1));
+        t.Check(siege.State.Station == Station.Window && siege.State.Visible, "in the siege he is seen at the window");
+        while (siegeNight.FractionLeft > 0.19) siege.Update(siegeNight, siegeNight.Advance(1));
+        t.Check(siege.State.Station == Station.Door && !siege.State.Visible, "and only heard at the door");
     }
 }

@@ -87,7 +87,7 @@ static class UiTests
 
         // The LEIA-ME shows its table without the Markdown marks.
         string readme = screen.Info.ReadmeBox.Text;
-        check(readme.Contains("Método") && readme.Contains("Watts()") && !readme.Contains('`') && !readme.Contains("**"), "the LEIA-ME is shown without Markdown marks");
+        check(readme.Contains("Watts()") && readme.Contains("Quantos watts a lâmpada usa?") && !readme.Contains('`') && !readme.Contains("**"), "the LEIA-ME is shown without Markdown marks");
 
         // The night's keys.
         editor.Load(night.Starter);
@@ -197,5 +197,19 @@ static class UiTests
         check(screen.Info.Current == InfoPane.Tab.Review && review.Contains("Revisão da noite") && review.Contains("Tentativas: 2") && review.Contains("Doces: 2") && review.Contains("Velas perdidas: 3"), "the review opens with the night's numbers, every attempt counted");
         check(review.Contains("○ Ileso") && review.Contains("○ Sem doce"), "after a capture and two sweets, neither Ileso nor Sem doce");
         check(review.Contains(night.Learned.Pt[..40]) && review.Contains("1× │") && review.Contains("return watts;"), "the review shows what the night taught and the code with its line counts");
+
+        // A LEIA-ME table too wide for the panel reads as one block per row.
+        screen.Open(screen.Nights[2]);
+        await Task.Delay(300);
+        string yard = screen.Info.ReadmeBox.Text;
+        check(yard.Contains("\n  O que devolve: Se está escuro lá fora") && !yard.Contains("Método"), "a wide table reads as one block per row");
+
+        // Vigil: the first night starts from zero, with four candles and free hints.
+        Options.Difficulty = Difficulty.Vigil;
+        screen.Open(screen.Nights[0]);
+        await Task.Delay(300);
+        check(screen.Info.ReadmeBox.Text.StartsWith("Do zero", StringComparison.Ordinal) && screen.Info.ReadmeBox.Text.Contains("A caixa da lâmpada"), "in Vigil, the LEIA-ME starts from zero and keeps the night's own");
+        check(screen.Session.Clock.CandlesLeft == 4 && screen.Session.HintCost == 0, "Vigil has four candles and free hints");
+        Options.Difficulty = Difficulty.Night;
     }
 }
