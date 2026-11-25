@@ -1,8 +1,14 @@
 # Candeia
 
-Jogo de terror e programação para Windows. Você volta ao casarão da infância, no Recife, e sobrevive às noites escrevendo C# que compila e roda de verdade, enquanto o Papa-Figo se aproxima. Arte vetorial desenhada pelo próprio jogo e sons sintetizados em código, sem assets externos.
+**Um jogo de terror em que você sobrevive à noite programando.**
 
-**Estado:** entrega 10B de 11, a versão de teste. O Ato 1 está completo, em português e inglês, com o progresso salvo, e o jogo sai num zip pronto para quem vai testar. São cinco noites:
+![O Papa-Figo na janela, enquanto o código roda no monitor antigo](docs/images/janela.jpg)
+
+Você volta ao casarão da infância, no Recife. Décadas atrás, quem criou você escreveu no computador da casa um sistema para manter o Papa-Figo longe: o **CANDEIA**. Ele funcionou, você cresceu e foi embora. Agora o sistema está quebrado, e ele voltou.
+
+Cada noite, você conserta uma peça do CANDEIA escrevendo **C# de verdade**, que compila e roda. Cada programa que funciona acende uma luz da casa e o afasta. Cada erro deixa a casa no escuro, e ele mais perto.
+
+Jogo para Windows, com arte vetorial desenhada pelo próprio jogo e sons sintetizados em código, sem assets externos. O Ato 1 está completo, em português e inglês, com o progresso salvo. São cinco noites:
 
 - 1, A luz do quarto: variáveis e tipos;
 - 2, A bateria do sistema: operações;
@@ -26,8 +32,6 @@ Em volta das noites:
 - o progresso salvo: o código de cada noite, as dicas abertas, as vitórias e o melhor resultado;
 - as opções de idioma, fonte, contraste, legendas, sustos suaves e volume por camada;
 - duas páginas secretas do caderno, abertas pelas marcas.
-
-Depois dos testes de jogo vêm os Atos 2, 3 e 4, que ainda não têm plano.
 
 ## Requisitos
 
@@ -253,7 +257,7 @@ Na tela da noite, a cena é desenhada numa thread própria (`SceneWorker`):
 
 Na tomada, o resultado é a digitação com p95 abaixo de 8 ms e o processador entre 32% e 33% de um núcleo a 60 quadros por segundo. A 30 quadros por segundo, o modo da bateria, o processador fica em 20%.
 
-`./scripts/scene-bench.ps1` mede cada parada a 60 e a 30 quadros por segundo e confere os três critérios do plano técnico: pelo menos 30 quadros por segundo, no máximo 35% de um núcleo do processador e digitação que aparece em menos de 16 ms. O relatório e uma imagem por parada ficam em `test-artifacts/desenho/`. Para ver quanto custa cada camada em cada parada, sem janela:
+`./scripts/scene-bench.ps1` mede cada parada a 60 e a 30 quadros por segundo e confere três critérios: pelo menos 30 quadros por segundo, no máximo 35% de um núcleo do processador e digitação que aparece em menos de 16 ms. O relatório e uma imagem por parada ficam em `test-artifacts/desenho/`. Para ver quanto custa cada camada em cada parada, sem janela:
 
 ```powershell
 ./scripts/dotnet.ps1 run --project src/Candeia.Windows -c Release -- --scene-profile test-artifacts/perfil.md
@@ -276,14 +280,14 @@ O script recusa gerar o pacote em dois casos:
 - o .NET dentro do exe não é a versão cujas licenças estão em `licenses/`;
 - o exe guarda algum caminho deste computador. O build mapeia os caminhos do código-fonte, para que os relatórios de erro dos testadores não carreguem as pastas de quem gerou o jogo.
 
-Na entrega 10B, o pacote passou pelas conferências abaixo:
+O pacote foi conferido assim:
 
 - descompactado fora do repositório e sem o .NET no PATH, compilou e rodou as noites pelo executor isolado;
 - os 99 testes de interface passaram com o exe do pacote;
 - a suíte de ataques, publicada também em arquivo único e rodada fora do repositório, conteve os 19 ataques;
 - o Windows Defender não encontrou ameaças, nem na pasta nem no zip.
 
-O exe não tem assinatura digital, então o Windows mostra o aviso do SmartScreen, e o guia explica como passar por ele. O Windows deste computador é Home, sem o Windows Sandbox, então o teste num Windows limpo é feito em outro computador.
+O exe não tem assinatura digital, então o Windows mostra o aviso do SmartScreen, e o guia explica como passar por ele.
 
 ## Estrutura
 
@@ -296,6 +300,8 @@ O exe não tem assinatura digital, então o Windows mostra o aviso do SmartScree
 | `samples/csharp/` | Programas de exemplo, certos e errados, para conferir o verificador de C# |
 | `scripts/` | SDK isolado, testes, verificação de C# e execução |
 | `licenses/` | Licenças de componentes de terceiros distribuídos com o jogo |
-| `docs/` | O guia para quem vai testar, que vai no zip |
+| `docs/` | O guia para quem vai testar, que vai no zip, e as imagens deste README |
 
-Todo o código, inclusive nomes e comentários, é escrito em inglês. A interface, o caderno e as explicações ao jogador ficam em português e inglês.
+## Licença
+
+© 2026 Weydson de Brito. Todos os direitos reservados: veja [LICENSE.txt](LICENSE.txt). Os componentes de terceiros e as suas licenças estão em [licenses/](licenses/).
