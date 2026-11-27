@@ -1,16 +1,20 @@
-# Builds the test version: dist/Candeia-<version>-teste.zip, with
+# Builds the game to hand out: dist/Candeia-<version>.zip, with
 #   Candeia.exe       the game as one file, with .NET inside (nothing to install), x64
 #   content/          the nights and the notebook, beside it, so they can change without a new build
 #   licenses/         the third-party licenses, and LICENSE.txt with Candeia's own terms
-#   COMO-TESTAR.txt   the guide for testers, in Portuguese and English
+#   COMO-JOGAR.txt    how to open and play, in Portuguese and English
+# With -Test, the play-test version instead: dist/Candeia-<version>-teste.zip, with COMO-TESTAR.txt and
+# its questionnaire in place of COMO-JOGAR.txt.
 # The build maps source paths (ContinuousIntegrationBuild), so the stack traces in a crash report never
 # carry this computer's folders; the script checks the executable for them before zipping.
+param([switch]$Test)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $dotnet = Join-Path $PSScriptRoot 'dotnet.ps1'
 $version = ([xml](Get-Content -LiteralPath (Join-Path $root 'Directory.Build.props'))).Project.PropertyGroup |
     ForEach-Object { $_.Version } | Where-Object { $_ } | Select-Object -First 1
-$name = "Candeia-$version-teste"
+$name = if ($Test) { "Candeia-$version-teste" } else { "Candeia-$version" }
+$guide = if ($Test) { 'docs/COMO-TESTAR.txt' } else { 'docs/COMO-JOGAR.txt' }
 $dist = Join-Path $root 'dist'
 $stage = Join-Path $dist $name
 $zip = Join-Path $dist "$name.zip"
@@ -44,7 +48,7 @@ if (-not $listed) {
 Get-ChildItem -LiteralPath $stage -File | Where-Object { $_.Name -ne 'Candeia.exe' } | Remove-Item -Force
 Copy-Item -LiteralPath (Join-Path $root 'licenses') -Destination (Join-Path $stage 'licenses') -Recurse
 Copy-Item -LiteralPath (Join-Path $root 'LICENSE.txt') -Destination $stage
-Copy-Item -LiteralPath (Join-Path $root 'docs/COMO-TESTAR.txt') -Destination $stage
+Copy-Item -LiteralPath (Join-Path $root $guide) -Destination $stage
 
 # No folder of this computer inside the executable (they would reach the testers in a crash report).
 $exe = Join-Path $stage 'Candeia.exe'

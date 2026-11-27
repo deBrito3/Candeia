@@ -33,7 +33,17 @@ Em volta das noites:
 - as opções de idioma, fonte, contraste, legendas, sustos suaves e volume por camada;
 - duas páginas secretas do caderno, abertas pelas marcas.
 
+## Baixar e jogar
+
+1. Baixe o `Candeia-<versão>.zip` na [última versão publicada](https://github.com/deBrito3/Candeia/releases/latest).
+2. Descompacte numa pasta sua, por exemplo em Documentos.
+3. Abra o `Candeia.exe`. Não é preciso instalar nada: basta o Windows 10 ou 11 de 64 bits.
+
+Como o jogo ainda não tem assinatura digital, o Windows pode avisar "O Windows protegeu o computador": clique em "Mais informações" e depois em "Executar assim mesmo". O `COMO-JOGAR.txt`, dentro do zip, explica a primeira noite e as teclas. Encontrou um problema? Abra uma [issue](https://github.com/deBrito3/Candeia/issues).
+
 ## Requisitos
+
+Para compilar e rodar a partir do código:
 
 - Windows 10 ou 11, x64.
 - SDK do .NET 10. A versão mínima está em `global.json`. Para instalar exatamente essa versão sem mexer no SDK da máquina, rode `./scripts/setup-sdk.ps1`.
@@ -43,7 +53,8 @@ Em volta das noites:
 ```powershell
 ./scripts/test.ps1                                # compila tudo e roda as suítes de teste
 ./scripts/run.ps1                                 # abre o jogo
-./scripts/publish.ps1                             # gera a versão de teste em dist/: o zip com o jogo, as noites, as licenças e o guia
+./scripts/publish.ps1                             # gera em dist/ o zip para publicar: o jogo, as noites, as licenças e o COMO-JOGAR
+./scripts/publish.ps1 -Test                       # o zip para testes de jogo, com o COMO-TESTAR e o questionário
 ./scripts/run.ps1 --shot test-artifacts/boot.png  # salva a tela inicial numa imagem
 ./scripts/check.ps1                               # verifica as amostras de samples/csharp como uma noite faria
 ./scripts/check.ps1 meu-arquivo.cs --en           # verifica um arquivo, com as mensagens em inglês
@@ -263,17 +274,19 @@ Na tomada, o resultado é a digitação com p95 abaixo de 8 ms e o processador e
 ./scripts/dotnet.ps1 run --project src/Candeia.Windows -c Release -- --scene-profile test-artifacts/perfil.md
 ```
 
-## Versão de teste
+## O pacote
 
-`./scripts/publish.ps1` gera `dist/Candeia-<versão>-teste.zip`, com cerca de 46 MB, contendo:
+`./scripts/publish.ps1` gera `dist/Candeia-<versão>.zip`, com cerca de 46 MB, contendo:
 
 | Arquivo | Conteúdo |
 | --- | --- |
 | `Candeia.exe` | O jogo num arquivo só, com o .NET dentro, para Windows 10 e 11 de 64 bits; não precisa instalar nada |
 | `content/` | As noites e o caderno, ao lado do exe, para mudar sem gerar o jogo de novo |
 | `licenses/` | As licenças do Roslyn, do .NET e do Windows Desktop |
-| `LICENSE.txt` | Os termos do Candeia: todos os direitos reservados, uso pessoal da versão de teste |
-| `COMO-TESTAR.txt` | O guia para quem vai testar, com o questionário, em português e inglês |
+| `LICENSE.txt` | Os termos do Candeia: todos os direitos reservados; baixar e jogar, para uso pessoal |
+| `COMO-JOGAR.txt` | Como abrir e jogar, em português e inglês |
+
+Com `-Test`, o pacote se chama `Candeia-<versão>-teste.zip` e traz o `COMO-TESTAR.txt`, com o questionário para testes de jogo, no lugar do `COMO-JOGAR.txt`.
 
 O script recusa gerar o pacote em dois casos:
 
@@ -300,7 +313,7 @@ O exe não tem assinatura digital, então o Windows mostra o aviso do SmartScree
 | `samples/csharp/` | Programas de exemplo, certos e errados, para conferir o verificador de C# |
 | `scripts/` | SDK isolado, testes, verificação de C# e execução |
 | `licenses/` | Licenças de componentes de terceiros distribuídos com o jogo |
-| `docs/` | O guia para quem vai testar, que vai no zip, e as imagens deste README |
+| `docs/` | Os guias que vão no zip (`COMO-JOGAR.txt` e `COMO-TESTAR.txt`) e as imagens deste README |
 
 ## Licença
 

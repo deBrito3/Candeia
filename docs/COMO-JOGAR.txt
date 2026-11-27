@@ -1,0 +1,114 @@
+CANDEIA · como jogar / how to play
+==================================
+
+English below.
+
+
+PORTUGUÊS
+---------
+
+Candeia é um jogo de terror em que você sobrevive à noite programando. Você volta ao casarão da infância,
+no Recife, e conserta o sistema que mantinha o Papa-Figo longe escrevendo C# que compila e roda de verdade.
+Esta versão tem o Ato 1: cinco noites.
+
+Como abrir
+
+1. Descompacte o zip numa pasta sua, por exemplo em Documentos. Não abra o jogo de dentro do zip.
+2. Abra Candeia.exe. Não é preciso instalar nada: basta o Windows 10 ou 11 de 64 bits.
+3. O Windows pode avisar "O Windows protegeu o computador", porque o jogo ainda não tem assinatura
+   digital. Clique em "Mais informações" e depois em "Executar assim mesmo".
+4. Na primeira vez, escolha a dificuldade: Vigília se você nunca programou, Noite se já começou.
+
+Use fones de ouvido: o som diz de onde ele vem.
+
+Aviso: o jogo tem clarões de relâmpago, sustos e sons altos de repente. Na tela inicial, a tecla S liga
+os sustos suaves, sem clarões.
+
+A primeira noite
+
+1. Leia o LEIA-ME: ele diz o que cada método deve responder. Ler não gasta tempo.
+2. Complete o código no editor e aperte F5. Cada teste que passa acende uma lâmpada.
+3. Lâmpada nova devolve tempo e o afasta. Executar sem acender nada custa tempo. Erro de compilação
+   não custa tempo: a SAÍDA explica o erro, e às vezes oferece um CORRIGIR (duplo clique).
+4. Acenda todas as lâmpadas para vencer a noite. Se o tempo acabar, uma vela se apaga; na última,
+   ele te pega, e a noite recomeça com o seu código.
+
+Teclas
+
+  F5              executa o seu código
+  Ctrl+1 a Ctrl+5 LEIA-ME, SAÍDA, DICAS, CADERNO e REVISÃO
+  F1              a página do caderno da palavra sob o cursor (o caderno é de graça)
+  Ctrl+3          as dicas; cada uma custa um pouco do seu tempo
+  Esc             pausa; na pausa, M volta ao menu
+  Ctrl+= e Ctrl+- aumenta e diminui a fonte do editor
+  F11             tela cheia
+
+Onde ficam as coisas (cole o caminho na barra do Explorador de Arquivos)
+
+  O progresso:              %LOCALAPPDATA%\Candeia\save.json
+  Se o jogo quebrar:        um relatório em %LOCALAPPDATA%\Candeia\erros\
+                            (ele não leva o seu código)
+  Para recomeçar do zero:   feche o jogo e apague a pasta %LOCALAPPDATA%\Candeia
+  Para desinstalar:         apague a pasta do jogo e a pasta %LOCALAPPDATA%\Candeia
+
+Encontrou um problema ou quer comentar o jogo?
+
+Abra uma issue em https://github.com/deBrito3/Candeia/issues. Se o jogo quebrou, anexe o relatório
+da pasta erros.
+
+Bom medo.
+
+
+ENGLISH
+-------
+
+Candeia is a horror game where you survive the night by programming. You go back to your childhood home in
+Recife and fix the system that kept the Papa-Figo away, writing C# that really compiles and runs. This
+version has Act 1: five nights. On the menu, Options → Language switches the game to English.
+
+How to open it
+
+1. Unzip it into a folder of yours, for example Documents. Do not open the game from inside the zip.
+2. Open Candeia.exe. Nothing needs installing: 64-bit Windows 10 or 11 is enough.
+3. Windows may warn "Windows protected your PC", because the game is not digitally signed yet. Click
+   "More info" and then "Run anyway".
+4. The first time, choose the difficulty: Vigil if you never programmed, Night if you have started.
+
+Use headphones: the sound tells you where he comes from.
+
+Warning: the game has lightning flashes, scares and sudden loud sounds. On the boot screen, S turns on soft
+scares, without flashes.
+
+The first night
+
+1. Read the README: it tells what each method must answer. Reading costs no time.
+2. Complete the code in the editor and press F5. Each test that passes lights a lamp.
+3. A new lamp gives time back and pushes him away. A run that lights nothing costs time. A compile error
+   costs no time: the OUTPUT explains it, and sometimes offers a FIX (double click).
+4. Light every lamp to win the night. If time runs out, a candle goes out; at the last one, he takes
+   you, and the night starts over with your code.
+
+Keys
+
+  F5              runs your code
+  Ctrl+1 to 5     README, OUTPUT, HINTS, NOTEBOOK and REVIEW
+  F1              the notebook page of the word under the caret (the notebook is free)
+  Ctrl+3          the hints; each one costs a little of your time
+  Esc             pause; in the pause, M goes back to the menu
+  Ctrl+= and -    makes the editor's font bigger and smaller
+  F11             full screen
+
+Where things are (paste the path into File Explorer's address bar)
+
+  Your progress:            %LOCALAPPDATA%\Candeia\save.json
+  If the game breaks:       a report in %LOCALAPPDATA%\Candeia\erros\
+                            (it never carries your code)
+  To start over from zero:  close the game and delete the folder %LOCALAPPDATA%\Candeia
+  To uninstall:             delete the game's folder and the folder %LOCALAPPDATA%\Candeia
+
+Found a problem, or want to comment on the game?
+
+Open an issue at https://github.com/deBrito3/Candeia/issues. If the game broke, attach the report from
+the erros folder.
+
+Enjoy the fear.
